@@ -9,9 +9,9 @@
 #include<SDL2/SDL_ttf.h>
 
 enum {GRIDSIZEX=200, GRIDSIZEY=200};
-enum {SAND, WATER, WOOD, FIRE, SMOKE, STEAM, NUM_PARTICLES};
+enum {SAND, WATER, WOOD, FIRE, SMOKE, STEAM, SALT, METAL, NUM_PARTICLES};
 // Seconds for fire to spread
-const float SPREADTIME = 0.003f;
+const float SPREADTIME = 0.001f;
 
 void swap(int &a, int &b)
 {
@@ -47,7 +47,9 @@ class Particle {
 	float y;
 	short int id;
 	short int vel[2];
-	short int acc[2];
+	short int acc;
+	// Terminal acceleration
+	short int Tacc;
 	short int color[3];
 	bool doKill = false;
 	// Reference to cell number
@@ -66,72 +68,78 @@ class Particle {
 		this->idx = idx;
 
 		switch(this->id) {
-			case SAND: {
-				// Sand
+			case SAND: 
 				color[0] = 255;
 				color[1] = 255;
 				color[2] = 0;
 				vel[0] = 1;
 				vel[1] = 1;
-				acc[0] = 1;
-				acc[1] = 1;
+				acc = 6;
+				Tacc = 6;
 				break;
-				   }
-			case WATER: {
-				// Water
+			case WATER: 
 				color[0] = 0;
 				color[1] = 30;
 				color[2] = 255;
 				vel[0] = 1;
 				vel[1] = 1;
-				acc[0] = 1;
-				acc[1] = 1;
+				acc = 4;
+				Tacc = 4;
 				break;
-				    }
-			case WOOD: {
-				// Wood
+			case WOOD: 
 				color[0] = 196;
 				color[1] = 154;
 				color[2] = 107;
 				vel[0] = 0;
 				vel[1] = 0;
-				acc[0] = 0;
-				acc[1] = 0;
+				acc = 0;
+				Tacc = 0;
 				break;
-				   }
-			case FIRE: {
-				// Fire
+			case FIRE: 
 				color[0] = 255;
 				color[1] = 150;
 				color[2] = 0;
 				vel[0] = 1;
 				vel[1] = 1;
-				acc[0] = 0;
-				acc[1] = 0;
+				acc = 0;
+				Tacc = 0;
 				break;
-				   }
-			case SMOKE: {
-				// Smoke
+			case SMOKE: 
 				color[0] = 155;
 				color[1] = 155;
 				color[2] = 155;
 				vel[0] = 1;
 				vel[1] = 1;
-				acc[0] = 1;
-				acc[1] = 1;
+				acc = 0;
+				Tacc = 0;
 				break;
-				    }
-			case STEAM: {
-				// Smoke
+			case STEAM: 
 				color[0] = 180;
 				color[1] = 180;
 				color[2] = 180;
 				vel[0] = 1;
 				vel[1] = 1;
-				acc[0] = 1;
-				acc[1] = 1;
+				acc = 0;
+				Tacc = 0;
 				break;
-				    }
+			case SALT:
+				color[0] = 255;
+				color[1] = 255;
+				color[2] = 255;
+				vel[0] = 1;
+				vel[1] = 1;
+				acc = 6;
+				Tacc = 6;
+				break;
+			case METAL: 
+				color[0] = 180;
+				color[1] = 180;
+				color[2] = 180;
+				vel[0] = 1;
+				vel[1] = 1;
+				acc = 0;
+				Tacc = 0;
+				break;
 		}
 	}
 	void reinit()
@@ -143,6 +151,12 @@ class Particle {
 		initParticle(p.x, p.y, p.id, p.cellx, p.celly, p.idx);
 		for(int i=0; i<3; i++)
 			this->color[i] = p.color[i];
+	}
+	void printInfo()
+	{
+		printf("Particle\n=========\nID: %i, IDX: %i, COLOR: %i, %i, %i,\
+				ACC: %i\n\n", id, idx, color[0], color[1], color[2],\
+			       acc);	
 	}
 };
 
@@ -160,7 +174,9 @@ class Global {
 	bool lbutton_down = false;
 	bool rbutton_down = false;
 	int mousex, mousey;
-	bool show_menu = false;
+	bool show_menu = true;
+	bool pause = false;
+	bool inbounds = false;
 	
 	Global()
 	{
@@ -262,24 +278,32 @@ class Grid {
 void allocateParticle(int id, int x, int y, int cellx, int celly)
 {
 	if(global.pcount < 1) {
-		global.p = new Particle;
-		global.p->initParticle(x, y, id, cellx, celly, global.pcount);
-		g.cells[celly][cellx].idx = global.p->idx;
-		g.cells[celly][cellx].id = global.p->id;
-		g.cells[celly][cellx].taken = true;
-		global.pcount = 1;
+		try {
+			global.p = new Particle;
+			global.p->initParticle(x, y, id, cellx, celly, global.pcount);
+			g.cells[celly][cellx].idx = global.p->idx;
+			g.cells[celly][cellx].id = global.p->id;
+			g.cells[celly][cellx].taken = true;
+			global.pcount = 1;
+		} catch(int BAD_ALLOC) {
+			printf("ERROR ALLOCATING PARTICLE\n");
+		}
 	} else {
-		Particle* tmp = global.p;
-		global.p = new Particle[global.pcount+1];
-		for(int i=0; i<global.pcount; i++)
-			global.p[i] = tmp[i];
-		global.p[global.pcount].initParticle(x, y, id, cellx, celly, global.pcount);
-		g.cells[celly][cellx].taken = true;
-		g.cells[celly][cellx].idx = global.p[global.pcount].idx;
-		g.cells[celly][cellx].id = global.p[global.pcount].id;
-		delete tmp;
-		tmp = nullptr;
-		global.pcount++;
+		try {
+			Particle* tmp = global.p;
+			global.p = new Particle[global.pcount+1];
+			for(int i=0; i<global.pcount; i++)
+				global.p[i] = tmp[i];
+			global.p[global.pcount].initParticle(x, y, id, cellx, celly, global.pcount);
+			g.cells[celly][cellx].taken = true;
+			g.cells[celly][cellx].idx = global.p[global.pcount].idx;
+			g.cells[celly][cellx].id = global.p[global.pcount].id;
+			delete tmp;
+			tmp = nullptr;
+			global.pcount++;
+		} catch(int BAD_ALLOC) {
+			printf("ERROR ALLOCATING PARTICLE\n");
+		}
 	}
 }
 
@@ -295,26 +319,35 @@ void deallocateParticles()
 			g.cells[ypos][xpos].idx = -1;
 			g.cells[ypos][xpos].id = -1;
 		}
-	if(global.pcount - kill_count <= 0) {
-		delete global.p;
-		global.p = nullptr;
-		global.pcount = 0;
-	} else {
-		Particle* tmp = global.p;
-		int new_count = global.pcount - kill_count;
-		global.p = new Particle[new_count];
-		int j=0;
-		for(int i=0; i<global.pcount; i++) {
-			if(!tmp[i].doKill && j < new_count) {
-				// Copy if no kill order
-				global.p[j] = tmp[i];
-				j++;
-			}
+	if(kill_count == 0) return;
+	else if(global.pcount - kill_count <= 0) {
+		try {
+			delete global.p;
+			global.p = nullptr;
+			global.pcount = 0;
+		} catch(int err) {
+			printf("ERROR DEALLOCATING PARTICLES\n");
 		}
+	} else {
+		try {
+			Particle* tmp = global.p;
+			int new_count = global.pcount - kill_count;
+			global.p = new Particle[new_count];
+			int j=0;
+			for(int i=0; i<global.pcount; i++) {
+				if(!tmp[i].doKill && j < new_count) {
+					// Copy if no kill order
+					global.p[j] = tmp[i];
+					j++;
+				}
+			}
 
-		delete tmp;
-		tmp = nullptr;
-		global.pcount = new_count;
+			delete tmp;
+			tmp = nullptr;
+			global.pcount = new_count;
+		} catch(int err) {
+			printf("ERROR DEALLOCATING PARTICLES\n");
+		}
 	}
 }
 
@@ -379,7 +412,7 @@ class SDL_Wrapper {
 		//SDL_UpdateWindowSurface(window);
 	
 		// Clear screen
-		setColor(255, 255, 255);
+		setColor(0, 0, 0);
 		SDL_RenderClear(rend);
 	}
 	void postRender()
@@ -425,6 +458,13 @@ class SDL_Wrapper {
 				ignore ^= 1;
 				break;
 				     }
+			case SDLK_p: {
+				static bool ignore = false;
+				if(!ignore)
+					global.pause ^= 1;
+				ignore ^= 1;
+				break;
+				     }
 			case SDLK_f: {
 				static bool ignore = false;
 				if(!ignore)
@@ -447,15 +487,13 @@ class SDL_Wrapper {
 	}
 	void checkMouse(SDL_Event e)
 	{
-		static bool inbounds = true;
-
 		if(e.type == SDL_MOUSEMOTION) {
 			// Mouse moved
 			SDL_GetMouseState(&global.mousex, &global.mousey);
 			if(global.mousex >=0 && global.mousex < global.xres && 
 					global.mousey >= 0 && global.mousey < global.yres)
-				inbounds = true;
-			else inbounds = false;
+				global.inbounds = true;
+			else global.inbounds = false;
 			//printf("Mouse: %i, %i\n", mousex, mousey);
 		}
 
@@ -483,13 +521,14 @@ class SDL_Wrapper {
 
 				// Print info for this cell
 				printf("\n\nCell [%i][%i]\n============\n", celly, cellx);
-				printf("ID: %i, Particle IDX: %i, Taken: %i\n\n",
+				printf("ID: %i, Particle IDX: %i, Taken: %i\n",
 						g.cells[celly][cellx].id, g.cells[celly][cellx].idx,
 						g.cells[celly][cellx].id);
+				global.p[g.cells[celly][cellx].idx].printInfo();
 			}
 
 			// Else generate a particle
-			else if((e.button.button == SDL_BUTTON_LEFT || global.lbutton_down) && inbounds) {
+			else if((e.button.button == SDL_BUTTON_LEFT || global.lbutton_down) && global.inbounds) {
 				global.lbutton_down = true;
 				global.rbutton_down = false;
 				if(global.show_menu && global.mousey < 100) return;
@@ -520,7 +559,7 @@ class SDL_Wrapper {
 					       g.cells[celly_idx][cellx_idx].y,	cellx_idx, celly_idx);
 				}
 			}
-			else if((e.button.button == SDL_BUTTON_RIGHT || global.rbutton_down) && inbounds) {
+			else if((e.button.button == SDL_BUTTON_RIGHT || global.rbutton_down) && global.inbounds) {
 				// Right click
 				global.lbutton_down = false;
 				global.rbutton_down = true;
@@ -594,8 +633,8 @@ class SDL_Wrapper {
 				printf("ERROR FONT: %s\n", SDL_GetError());
 				return;
 			}
-			SDL_Color White = {255, 255, 255};
-			SDL_Surface* surface = TTF_RenderText_Solid(Sans, mes, White);
+			SDL_Color BLACK = {0,0,0};
+			SDL_Surface* surface = TTF_RenderText_Solid(Sans, mes, BLACK);
 			message[i] = SDL_CreateTextureFromSurface(rend, surface);
 			SDL_FreeSurface(surface);
 		}
@@ -629,6 +668,7 @@ void generateParticles()
 	global.lbutton_down = true;
 	global.rbutton_down = false;
 	if(global.show_menu && global.mousey < 100) return;
+	if(!global.inbounds) return;
 	float mouse[2] = {(float)global.mousex, (float)global.mousey};
 	float closest_dist = 999.99f;
 	int celly_idx;
@@ -688,6 +728,12 @@ void changeParticle(Particle req, int idx)
 
 void updateWater(int idx)
 {
+	if(global.p[idx].color[2] < 200) {
+		// Too much salt dissolves water
+		global.p[idx].doKill = true;
+		return;
+	}
+	const short int ACC = global.p[idx].Tacc;
 	// Position of current cell
 	int posx = global.p[idx].cellx;
 	int posy = global.p[idx].celly;
@@ -753,67 +799,146 @@ void updateWater(int idx)
 		}
 		return;
 	}
+	
+	// Salt evaporates with water
+	if(g.cells[prev_row][posx].id == SALT && g.cells[next_row][posx].taken) {
+		// Above
+		global.p[idx].color[2] -= 5;
+		global.p[idx].color[1] += 2;
+
+		int idx1 = g.cells[prev_row][posx].idx;
+		global.p[idx1].color[0]--;
+	} else if(g.cells[next_row][posx].id == SALT && g.cells[next_row][posx].taken) {
+		// Below
+		global.p[idx].color[2] -= 5;
+		global.p[idx].color[1] += 2;
+		// Salt not updating when water fell above?
+		int idx1 = g.cells[next_row][posx].idx;
+		global.p[idx1].color[0]--;
+	} else if(g.cells[posy][next_col].id == SALT && g.cells[posy][next_col].taken) {
+		// Right
+		global.p[idx].color[2] -= 5;
+		global.p[idx].color[1] += 2;
+		
+		int idx1 = g.cells[posy][next_col].idx;
+		global.p[idx1].color[0]--;
+	} else if(g.cells[posy][prev_col].id == SALT && g.cells[posy][prev_col].taken) {
+		// Left
+		global.p[idx].color[2] -= 5;
+		global.p[idx].color[1] += 2;
+		
+		int idx1 = g.cells[posy][prev_col].idx;
+		global.p[idx1].color[0]--;
+	}
 
 	// Update logic for water
 	if(!g.cells[next_row][posx].taken) {
 		// Water falls directly down
-		// Set current cell to not taken & take next spot
-		g.cells[posy][posx].taken = false;
-		g.cells[posy][posx].idx = -1;
-		g.cells[posy][posx].id = -1;
-		g.cells[next_row][posx].taken = true;
-		// Update current spot
-		global.p[idx].celly = next_row;
-		posy = global.p[idx].celly;
-		// Update coords
-		global.p[idx].x = g.cells[posy][posx].x;
-		global.p[idx].y = g.cells[posy][posx].y;
+		if(global.p[idx].acc < ACC)
+			global.p[idx].acc++;
+		int dist = 0;
+		while(!g.cells[next_row][posx].taken && dist < global.p[idx].acc) {
+			// Set current cell to not taken & take next spot
+			g.cells[posy][posx].taken = false;
+			g.cells[posy][posx].idx = -1;
+			g.cells[posy][posx].id = -1;
+			g.cells[next_row][posx].taken = true;
+			// Update current spot
+			global.p[idx].celly = next_row;
+			posy = global.p[idx].celly;
+			// Update coords
+			global.p[idx].x = g.cells[posy][posx].x;
+			global.p[idx].y = g.cells[posy][posx].y;
+			// Calculate possible locations
+			next_row = posy + global.p[idx].vel[1];
+			if(next_row >= g.max_rows)
+				next_row = posy;
+			prev_row = posy - global.p[idx].vel[1];
+			if(prev_row < 0)
+				prev_row = posy;
+			next_col = posx + global.p[idx].vel[0];
+			if(next_col >= g.max_cols)
+				next_col = posx;
+			prev_col = posx - global.p[idx].vel[0];
+			if(prev_col < 0)
+				prev_col = posx;
+			dist++;
+		}
+		return;
 	} else if(!g.cells[next_row][next_col].taken) {
 		// Water falls down->right
-		// Set current cell to not taken & take next spot
-		g.cells[posy][posx].taken = false;
-		g.cells[posy][posx].idx = -1;
-		g.cells[posy][posx].id = -1;
-		g.cells[next_row][next_col].taken = true;
-		// Update current spot
-		global.p[idx].celly = next_row;
-		global.p[idx].cellx = next_col;
-		posy = global.p[idx].celly;
-		posx = global.p[idx].cellx;
-		// Update coords
-		global.p[idx].x = g.cells[posy][posx].x;
-		global.p[idx].y = g.cells[posy][posx].y;
+		if(global.p[idx].acc < ACC)
+			global.p[idx].acc++;
+		int dist = 0;
+		while(!g.cells[next_row][next_col].taken && dist < global.p[idx].acc) {
+			// Set current cell to not taken & take next spot
+			g.cells[posy][posx].taken = false;
+			g.cells[posy][posx].idx = -1;
+			g.cells[posy][posx].id = -1;
+			g.cells[next_row][next_col].taken = true;
+			// Update current spot
+			global.p[idx].celly = next_row;
+			global.p[idx].cellx = next_col;
+			posy = global.p[idx].celly;
+			posx = global.p[idx].cellx;
+			// Update coords
+			global.p[idx].x = g.cells[posy][posx].x;
+			global.p[idx].y = g.cells[posy][posx].y;
+			// Calculate possible locations
+			next_row = posy + global.p[idx].vel[1];
+			if(next_row >= g.max_rows)
+				next_row = posy;
+			prev_row = posy - global.p[idx].vel[1];
+			if(prev_row < 0)
+				prev_row = posy;
+			next_col = posx + global.p[idx].vel[0];
+			if(next_col >= g.max_cols)
+				next_col = posx;
+			prev_col = posx - global.p[idx].vel[0];
+			if(prev_col < 0)
+				prev_col = posx;
+			dist++;
+		}
+		return;
 	} else if(!g.cells[next_row][prev_col].taken) {
 		// Water falls down->left
-		// Set current cell to not taken & take next spot
-		g.cells[posy][posx].taken = false;
-		g.cells[posy][posx].idx = -1;
-		g.cells[posy][posx].id = -1;
-		g.cells[next_row][prev_col].taken = true;
-		// Update current spot
-		global.p[idx].celly = next_row;
-		global.p[idx].cellx = prev_col;
-		posy = global.p[idx].celly;
-		posx = global.p[idx].cellx;
-		// Update coords
-		global.p[idx].x = g.cells[posy][posx].x;
-		global.p[idx].y = g.cells[posy][posx].y;
-	} else if(!g.cells[posy][prev_col].taken) {
-		// Water flows to the left
-		// Set current cell to not taken & take next spot
-		g.cells[posy][posx].taken = false;
-		g.cells[posy][posx].idx = -1;
-		g.cells[posy][posx].id = -1;
-		g.cells[posy][prev_col].taken = true;
-		// Update current spot
-		global.p[idx].cellx = prev_col;
-		posy = global.p[idx].celly;
-		posx = global.p[idx].cellx;
-		// Update coords
-		global.p[idx].x = g.cells[posy][posx].x;
-		global.p[idx].y = g.cells[posy][posx].y;
+		if(global.p[idx].acc < ACC)
+			global.p[idx].acc++;
+		int dist = 0;
+		while(!g.cells[next_row][prev_col].taken && dist < global.p[idx].acc) {
+			// Set current cell to not taken & take next spot
+			g.cells[posy][posx].taken = false;
+			g.cells[posy][posx].idx = -1;
+			g.cells[posy][posx].id = -1;
+			g.cells[next_row][prev_col].taken = true;
+			// Update current spot
+			global.p[idx].celly = next_row;
+			global.p[idx].cellx = prev_col;
+			posy = global.p[idx].celly;
+			posx = global.p[idx].cellx;
+			// Update coords
+			global.p[idx].x = g.cells[posy][posx].x;
+			global.p[idx].y = g.cells[posy][posx].y;
+			// Calculate possible locations
+			next_row = posy + global.p[idx].vel[1];
+			if(next_row >= g.max_rows)
+				next_row = posy;
+			prev_row = posy - global.p[idx].vel[1];
+			if(prev_row < 0)
+				prev_row = posy;
+			next_col = posx + global.p[idx].vel[0];
+			if(next_col >= g.max_cols)
+				next_col = posx;
+			prev_col = posx - global.p[idx].vel[0];
+			if(prev_col < 0)
+				prev_col = posx;
+			dist++;
+		}
+		return;
 	} else if(!g.cells[posy][next_col].taken) {
 		// Water flows to the right
+		global.p[idx].acc = 1;
+		int dist = 0;
 		// Set current cell to not taken & take next spot
 		g.cells[posy][posx].taken = false;
 		g.cells[posy][posx].idx = -1;
@@ -821,17 +946,37 @@ void updateWater(int idx)
 		g.cells[posy][next_col].taken = true;
 		// Update current spot
 		global.p[idx].cellx = next_col;
-		posy = global.p[idx].celly;
+		updateCellInfo(idx);
+		posx = global.p[idx].cellx;
+		// Update coords
+		global.p[idx].x = g.cells[posy][posx].x;
+		global.p[idx].y = g.cells[posy][posx].y;
+	} else if(!g.cells[posy][prev_col].taken) {
+		// Water flows to the left
+		global.p[idx].acc = 1;
+		int dist = 0;
+		// Set current cell to not taken & take next spot
+		g.cells[posy][posx].taken = false;
+		g.cells[posy][posx].idx = -1;
+		g.cells[posy][posx].id = -1;
+		g.cells[posy][prev_col].taken = true;
+		// Update current spot
+		global.p[idx].cellx = prev_col;
+		updateCellInfo(idx);
 		posx = global.p[idx].cellx;
 		// Update coords
 		global.p[idx].x = g.cells[posy][posx].x;
 		global.p[idx].y = g.cells[posy][posx].y;
 	} else {
+		// This object has stopped
+		// Restart acc
+		global.p[idx].acc = 0;
 	}
 }
 
 void updateSand(int idx)
 {
+	const short int ACC = global.p[idx].Tacc;
 	// Position of current cell
 	int posx = global.p[idx].cellx;
 	int posy = global.p[idx].celly;
@@ -849,10 +994,38 @@ void updateSand(int idx)
 
 	// Sand sinks to the bottom of water
 	if(g.cells[next_row][posx].id == WATER && g.cells[next_row][posx].taken) {
-		int idx1 = g.cells[next_row][posx].idx;
-		Particle tmp = global.p[idx];
-		changeParticle(global.p[idx1], idx);
-		changeParticle(tmp, idx1);
+		if(!g.cells[posy][next_col].taken) {
+			// Water pos
+			int idx1 = g.cells[next_row][posx].idx;
+			global.p[idx1].x = g.cells[posy][next_col].x;
+			global.p[idx1].y = g.cells[posy][next_col].y;
+			int cellx = global.p[idx1].cellx;
+			int celly = global.p[idx1].celly;
+			g.cells[celly][cellx].taken = false;
+			g.cells[celly][cellx].id = -1;
+			g.cells[celly][cellx].idx = -1;
+			global.p[idx1].cellx = next_col;
+			global.p[idx1].celly = posy;
+			updateCellInfo(idx1);
+		} else if(!g.cells[posy][prev_col].taken) {
+			// Water pos
+			int idx1 = g.cells[next_row][posx].idx;
+			global.p[idx1].x = g.cells[posy][prev_col].x;
+			global.p[idx1].y = g.cells[posy][prev_col].y;
+			int cellx = global.p[idx1].cellx;
+			int celly = global.p[idx1].celly;
+			g.cells[celly][cellx].taken = false;
+			g.cells[celly][cellx].id = -1;
+			g.cells[celly][cellx].idx = -1;
+			global.p[idx1].cellx = prev_col;
+			global.p[idx1].celly = posy;
+			updateCellInfo(idx1);
+		} else {
+			int idx1 = g.cells[next_row][posx].idx;
+			Particle tmp = global.p[idx];
+			changeParticle(global.p[idx1], idx);
+			changeParticle(tmp, idx1);
+		}
 		return;
 	} else if(g.cells[next_row][prev_col].id == WATER && g.cells[next_row][prev_col].taken) {
 		int idx1 = g.cells[next_row][prev_col].idx;
@@ -871,48 +1044,102 @@ void updateSand(int idx)
 	// Update logic for sand
 	if(!g.cells[next_row][posx].taken) {
 		// Sand falls directly down
-		// Set current cell to not taken & take next spot
-		g.cells[posy][posx].taken = false;
-		g.cells[posy][posx].idx = -1;
-		g.cells[posy][posx].id = -1;
-		g.cells[next_row][posx].taken = true;
-		// Update current spot
-		global.p[idx].celly = next_row;
-		posy = global.p[idx].celly;
-		// Update coords
-		global.p[idx].x = g.cells[posy][posx].x;
-		global.p[idx].y = g.cells[posy][posx].y;
+		if(global.p[idx].acc < ACC)
+			global.p[idx].acc++;
+		int dist = 0;
+		while(!g.cells[next_row][posx].taken && dist < global.p[idx].acc) {
+			// Set current cell to not taken & take next spot
+			g.cells[posy][posx].taken = false;
+			g.cells[posy][posx].idx = -1;
+			g.cells[posy][posx].id = -1;
+			g.cells[next_row][posx].taken = true;
+			// Update current spot
+			global.p[idx].celly = next_row;
+			posy = global.p[idx].celly;
+			// Update coords
+			global.p[idx].x = g.cells[posy][posx].x;
+			global.p[idx].y = g.cells[posy][posx].y;
+			// Calculate possible locations
+			next_row = posy + global.p[idx].vel[1];
+			if(next_row >= g.max_rows)
+				return;
+			next_col = posx + global.p[idx].vel[0];
+			if(next_col >= g.max_cols)
+				next_col = posx;
+			prev_col = posx - global.p[idx].vel[0];
+			if(prev_col < 0)
+				prev_col = posx;
+			dist++;
+		}
+		return;
 	} else if(!g.cells[next_row][next_col].taken) {
 		// Sand falls down->right
-		// Set current cell to not taken & take next spot
-		g.cells[posy][posx].taken = false;
-		g.cells[posy][posx].idx = -1;
-		g.cells[posy][posx].id = -1;
-		g.cells[next_row][next_col].taken = true;
-		// Update current spot
-		global.p[idx].celly = next_row;
-		global.p[idx].cellx = next_col;
-		posy = global.p[idx].celly;
-		posx = global.p[idx].cellx;
-		// Update coords
-		global.p[idx].x = g.cells[posy][posx].x;
-		global.p[idx].y = g.cells[posy][posx].y;
+		if(global.p[idx].acc < ACC)
+			global.p[idx].acc++;
+		int dist = 0;
+		while(!g.cells[next_row][next_col].taken && dist < global.p[idx].acc) {
+			// Set current cell to not taken & take next spot
+			g.cells[posy][posx].taken = false;
+			g.cells[posy][posx].idx = -1;
+			g.cells[posy][posx].id = -1;
+			g.cells[next_row][next_col].taken = true;
+			// Update current spot
+			global.p[idx].celly = next_row;
+			global.p[idx].cellx = next_col;
+			posy = global.p[idx].celly;
+			posx = global.p[idx].cellx;
+			// Update coords
+			global.p[idx].x = g.cells[posy][posx].x;
+			global.p[idx].y = g.cells[posy][posx].y;
+			// Calculate possible locations
+			next_row = posy + global.p[idx].vel[1];
+			if(next_row >= g.max_rows)
+				return;
+			next_col = posx + global.p[idx].vel[0];
+			if(next_col >= g.max_cols)
+				next_col = posx;
+			prev_col = posx - global.p[idx].vel[0];
+			if(prev_col < 0)
+				prev_col = posx;
+			dist++;
+		}
+		return;
 	} else if(!g.cells[next_row][prev_col].taken) {
 		// Sand falls down->left
-		// Set current cell to not taken & take next spot
-		g.cells[posy][posx].taken = false;
-		g.cells[posy][posx].idx = -1;
-		g.cells[posy][posx].id = -1;
-		g.cells[next_row][prev_col].taken = true;
-		// Update current spot
-		global.p[idx].celly = next_row;
-		global.p[idx].cellx = prev_col;
-		posy = global.p[idx].celly;
-		posx = global.p[idx].cellx;
-		// Update coords
-		global.p[idx].x = g.cells[posy][posx].x;
-		global.p[idx].y = g.cells[posy][posx].y;
+		if(global.p[idx].acc < ACC)
+			global.p[idx].acc++;
+		int dist = 0;
+		while(!g.cells[next_row][prev_col].taken && dist < global.p[idx].acc) {
+			// Set current cell to not taken & take next spot
+			g.cells[posy][posx].taken = false;
+			g.cells[posy][posx].idx = -1;
+			g.cells[posy][posx].id = -1;
+			g.cells[next_row][prev_col].taken = true;
+			// Update current spot
+			global.p[idx].celly = next_row;
+			global.p[idx].cellx = prev_col;
+			posy = global.p[idx].celly;
+			posx = global.p[idx].cellx;
+			// Update coords
+			global.p[idx].x = g.cells[posy][posx].x;
+			global.p[idx].y = g.cells[posy][posx].y;
+			// Calculate possible locations
+			next_row = posy + global.p[idx].vel[1];
+			if(next_row >= g.max_rows)
+				return;
+			next_col = posx + global.p[idx].vel[0];
+			if(next_col >= g.max_cols)
+				next_col = posx;
+			prev_col = posx - global.p[idx].vel[0];
+			if(prev_col < 0)
+				prev_col = posx;
+			dist++;
+		}
+		return;
 	} else {
+		// This object has stopped
+		// Restart acc
+		global.p[idx].acc = 0;
 	}
 }
 
@@ -950,6 +1177,12 @@ void updateFire(int idx)
 	int prev_col = posx - global.p[idx].vel[0];
 	if(prev_col < 0)
 		prev_col = posx;
+
+	// Falling sand puts fire out
+	if(g.cells[prev_row][posx].id == SAND && g.cells[prev_row][posx].taken) {
+		global.p[idx].doKill = true;
+		return;	
+	}
 
 	// Only spread to wood
 	// First, left or right
@@ -1317,10 +1550,223 @@ void updateSteam(int idx)
 	}
 }
 
+void updateSalt(int idx)
+{
+	const short int ACC = global.p[idx].Tacc;
+	if(global.p[idx].color[0] < 255) {
+		global.p[idx].doKill = true;
+		return;
+	}
+	bool do_return = false;
+	// Position of current cell
+	int posx = global.p[idx].cellx;
+	int posy = global.p[idx].celly;
+	updateCellInfo(idx);
+	// Calculate possible locations
+	int next_row = posy + global.p[idx].vel[1];
+	if(next_row >= g.max_rows)
+		return;
+	int prev_row = posy - global.p[idx].vel[1];
+	if(prev_row < 0)
+		prev_row = posy;
+	int next_col = posx + global.p[idx].vel[0];
+	if(next_col >= g.max_cols)
+		next_col = posx;
+	int prev_col = posx - global.p[idx].vel[0];
+	if(prev_col < 0)
+		prev_col = posx;
+
+	// Salt evaporates with water
+	if(g.cells[prev_row][posx].id == WATER) {
+		// Above
+		global.p[idx].color[0] -= 5;
+	} else if(g.cells[next_row][posx].id == WATER && g.cells[next_row][posx].taken) {
+		// Below
+		global.p[idx].color[0] -= 5;
+	} else if(g.cells[posy][next_col].id == WATER && g.cells[posy][next_col].taken) {
+		// Right
+		global.p[idx].color[0] -= 5;
+	} else if(g.cells[posy][prev_col].id == WATER && g.cells[posy][prev_col].taken) {
+		// Left
+		global.p[idx].color[0] -= 5;
+	}
+	// Update logic for salt
+	if(!g.cells[next_row][posx].taken) {
+		// Salt falls directly down
+		if(global.p[idx].acc < ACC)
+			global.p[idx].acc++;
+		int dist = 0;
+		while(!g.cells[next_row][posx].taken && dist < global.p[idx].acc) {
+			// Set current cell to not taken & take next spot
+			g.cells[posy][posx].taken = false;
+			g.cells[posy][posx].idx = -1;
+			g.cells[posy][posx].id = -1;
+			g.cells[next_row][posx].taken = true;
+			// Update current spot
+			global.p[idx].celly = next_row;
+			posy = global.p[idx].celly;
+			// Update coords
+			global.p[idx].x = g.cells[posy][posx].x;
+			global.p[idx].y = g.cells[posy][posx].y;
+			// Calculate possible locations
+			next_row = posy + global.p[idx].vel[1];
+			if(next_row >= g.max_rows)
+				return;
+			next_col = posx + global.p[idx].vel[0];
+			if(next_col >= g.max_cols)
+				next_col = posx;
+			prev_col = posx - global.p[idx].vel[0];
+			if(prev_col < 0)
+				prev_col = posx;
+			dist++;
+		}
+		return;
+	} else if(!g.cells[next_row][next_col].taken) {
+		// Salt falls down->right
+		if(global.p[idx].acc < ACC)
+			global.p[idx].acc++;
+		int dist = 0;
+		while(!g.cells[next_row][next_col].taken && dist < global.p[idx].acc) {
+			// Set current cell to not taken & take next spot
+			g.cells[posy][posx].taken = false;
+			g.cells[posy][posx].idx = -1;
+			g.cells[posy][posx].id = -1;
+			g.cells[next_row][next_col].taken = true;
+			// Update current spot
+			global.p[idx].celly = next_row;
+			global.p[idx].cellx = next_col;
+			posy = global.p[idx].celly;
+			posx = global.p[idx].cellx;
+			// Update coords
+			global.p[idx].x = g.cells[posy][posx].x;
+			global.p[idx].y = g.cells[posy][posx].y;
+			// Calculate possible locations
+			next_row = posy + global.p[idx].vel[1];
+			if(next_row >= g.max_rows)
+				return;
+			next_col = posx + global.p[idx].vel[0];
+			if(next_col >= g.max_cols)
+				next_col = posx;
+			prev_col = posx - global.p[idx].vel[0];
+			if(prev_col < 0)
+				prev_col = posx;
+			dist++;
+		}
+		return;
+	} else if(!g.cells[next_row][prev_col].taken) {
+		// Salt falls down->left
+		if(global.p[idx].acc < ACC)
+			global.p[idx].acc++;
+		int dist = 0;
+		while(!g.cells[next_row][prev_col].taken && dist < global.p[idx].acc) {
+			// Set current cell to not taken & take next spot
+			g.cells[posy][posx].taken = false;
+			g.cells[posy][posx].idx = -1;
+			g.cells[posy][posx].id = -1;
+			g.cells[next_row][prev_col].taken = true;
+			// Update current spot
+			global.p[idx].celly = next_row;
+			global.p[idx].cellx = prev_col;
+			posy = global.p[idx].celly;
+			posx = global.p[idx].cellx;
+			// Update coords
+			global.p[idx].x = g.cells[posy][posx].x;
+			global.p[idx].y = g.cells[posy][posx].y;
+			// Calculate possible locations
+			next_row = posy + global.p[idx].vel[1];
+			if(next_row >= g.max_rows)
+				return;
+			next_col = posx + global.p[idx].vel[0];
+			if(next_col >= g.max_cols)
+				next_col = posx;
+			prev_col = posx - global.p[idx].vel[0];
+			if(prev_col < 0)
+				prev_col = posx;
+			dist++;
+		}
+		return;
+	} else {
+		// This object has stopped
+		// Restart acc
+		global.p[idx].acc = 0;
+	}
+}
+
+void updateMetal(int idx)
+{
+	// Stays in place, but interacts with fire & water
+	const short int MAX_HEAT = 240;
+	const short int MIN_HEAT = 180;
+	// Position of current cell
+	int posx = global.p[idx].cellx;
+	int posy = global.p[idx].celly;
+	updateCellInfo(idx);
+	// Calculate possible locations
+	int next_row = posy + global.p[idx].vel[1];
+	if(next_row >= g.max_rows)
+		return;
+	int prev_row = posy - global.p[idx].vel[1];
+	if(prev_row < 0)
+		prev_row = posy;
+	int next_col = posx + global.p[idx].vel[0];
+	if(next_col >= g.max_cols)
+		next_col = posx;
+	int prev_col = posx - global.p[idx].vel[0];
+	if(prev_col < 0)
+		prev_col = posx;
+
+	// Fire interactions heat up metal
+	if(g.cells[prev_row][posx].id == FIRE && g.cells[prev_row][posx].taken) {
+		if(global.p[idx].color[0] < MAX_HEAT)
+			global.p[idx].color[0] += 5;
+	} else if(g.cells[next_row][posx].id == FIRE && g.cells[next_row][posx].taken) {
+		if(global.p[idx].color[0] < MAX_HEAT)
+			global.p[idx].color[0] += 5;
+	} else if(g.cells[posy][next_col].id == FIRE && g.cells[posy][next_col].taken) {
+		if(global.p[idx].color[0] < MAX_HEAT)
+			global.p[idx].color[0] += 5;
+	} else if(g.cells[posy][prev_col].id == FIRE && g.cells[posy][prev_col].taken) {
+		if(global.p[idx].color[0] < MAX_HEAT)
+			global.p[idx].color[0] += 5;
+	}
+
+	// Water interactions cool metal
+	if(g.cells[prev_row][posx].id == WATER && g.cells[prev_row][posx].taken) {
+		if(global.p[idx].color[0] > MIN_HEAT) {
+			global.p[idx].color[0] -= 5;
+			int idx1 = g.cells[prev_row][posx].idx;
+			global.p[idx1].id = STEAM;
+			global.p[idx1].reinit();
+		}
+	} else if(g.cells[next_row][posx].id == WATER && g.cells[next_row][posx].taken) {
+		if(global.p[idx].color[0] > MIN_HEAT) {
+			global.p[idx].color[0] -= 5;
+			int idx1 = g.cells[next_row][posx].idx;
+			global.p[idx1].id = STEAM;
+			global.p[idx1].reinit();
+		}
+	} else if(g.cells[posy][next_col].id == WATER && g.cells[posy][next_col].taken) {
+		if(global.p[idx].color[0] > MIN_HEAT) {
+			global.p[idx].color[0] -= 5;
+			int idx1 = g.cells[posy][next_col].idx;
+			global.p[idx1].id = STEAM;
+			global.p[idx1].reinit();
+		}
+	} else if(g.cells[posy][prev_col].id == WATER && g.cells[posy][prev_col].taken) {
+		if(global.p[idx].color[0] > MIN_HEAT) {
+			global.p[idx].color[0] -= 5;
+			int idx1 = g.cells[posy][prev_col].idx;
+			global.p[idx1].id = STEAM;
+			global.p[idx1].reinit();
+		}
+	}
+}
+
 void physics()
 {
 	static auto time_since_burn = std::chrono::high_resolution_clock::now();
 	for(int i=0; i<global.pcount; i++) {
+		// Particle movement & interactions
 		switch(global.p[i].id) {
 			case SAND:
 				updateSand(i);
@@ -1347,8 +1793,15 @@ void physics()
 			case STEAM:
 				updateSteam(i);
 				break;
+			case SALT:
+				updateSalt(i);
+				break;
+			case METAL:
+				updateMetal(i);
+				break;
 		}
 	}
+	// Delete particles with the doKill set true
 	deallocateParticles();
 }
 
@@ -1357,24 +1810,26 @@ void mainMenu()
 	// Displays menu which allows choosing between blocks
 	s.setColor(0, 200, 150);
 	s.fillRect(0, 0, global.xres, 100);
-	int x = 0, y = 0, w = 25, h = 25;
-	int offsetx = 50, offsety = 20;
+	int x = 0, y = 0, w = 20, h = 20;
+	int offsetx = 25, offsety = 25;
+	int textSize = 25;
 
+	// Temp particle
 	Particle p;
 	p.initParticle(0, 0, 0, 0, 0, -1);
 	for(int i=0; i<NUM_PARTICLES; i++) {
 		p.id = i;
 		p.reinit();
 		if(global.select == i) {
-			// Highlight option
+			// Highlight current option
 			s.setColor(0, 240, 150);
-			s.fillRect(x, y, (2*offsetx), 100);
+			s.fillRect(x, y, (2*offsetx), (2*offsety));
 		}
 		if(global.mousex >= x && global.mousex < x+(2*offsetx) &&
 				global.mousey >= y && global.mousey < 100) {
-			// Highlight option
+			// Highlight new option
 			s.setColor(0, 240, 150);
-			s.fillRect(x, y, (2*offsetx), 100);
+			s.fillRect(x, y, (2*offsetx), (2*offsety));
 			if(global.lbutton_down) {
 				// Choose this particle
 				global.select = i;
@@ -1383,24 +1838,31 @@ void mainMenu()
 		s.setColor(p.color[0], p.color[1], p.color[2]);
 		s.fillRect(x+offsetx, y+offsety, w, h);
 		s.setColor(0, 0, 0);
+		// Menu options
 		switch(i) {
-			case 0:
-				s.drawText(x+offsetx, y+(2*offsety), w, h, "SAND", 10, i);
+			case SAND:
+				s.drawText(x, y+(offsety/2), w, h, "SAND", textSize, i);
 				break;
-			case 1:
-				s.drawText(x+offsetx, y+(2*offsety), w, h, "WATER", 10, i);
+			case WATER:
+				s.drawText(x, y+(offsety/2), w, h, "WATER", textSize, i);
 				break;
-			case 2:
-				s.drawText(x+offsetx, y+(2*offsety), w, h, "WOOD", 10, i);
+			case WOOD:
+				s.drawText(x, y+(offsety/2), w, h, "WOOD", textSize, i);
 				break;
-			case 3:
-				s.drawText(x+offsetx, y+(2*offsety), w, h, "FIRE", 10, i);
+			case FIRE:
+				s.drawText(x, y+(offsety/2), w, h, "FIRE", textSize, i);
 				break;
-			case 4:
-				s.drawText(x+offsetx, y+(2*offsety), w, h, "SMOKE", 10, i);
+			case SMOKE:
+				s.drawText(x, y+(offsety/2), w, h, "SMOKE", textSize, i);
 				break;
-			case 5:
-				s.drawText(x+offsetx, y+(2*offsety), w, h, "STEAM", 10, i);
+			case STEAM:
+				s.drawText(x, y+(offsety/2), w, h, "STEAM", textSize, i);
+				break;
+			case SALT:
+				s.drawText(x, y+(offsety/2), w, h, "SALT", textSize, i);
+				break;
+			case METAL:
+				s.drawText(x, y+(offsety/2), w, h, "METAL", textSize, i);
 				break;
 		}
 		x += 2*offsetx;
@@ -1409,10 +1871,9 @@ void mainMenu()
 
 void render()
 {
-	
-	// Draw grid
 	/*
-	s.setColor(0, 0, 0);
+	// Draw grid
+	s.setColor(255, 255, 255);
 	for(int i=0; i<g.max_rows; i++) {
 		for(int j=0; j<g.max_cols; j++) {
 			s.drawLine(g.cells[i][j].x, g.cells[i][j].y,
@@ -1424,6 +1885,7 @@ void render()
 		}
 	}
 	*/
+
 	// Draw particles
 	for(int i=0; i<global.pcount; i++) {
 		s.setColor(global.p[i].color[0],global.p[i].color[1], global.p[i].color[2]);
@@ -1439,23 +1901,34 @@ void render()
 
 int main()
 {
+	// SDL
 	if(s.init())
 		exit(EXIT_FAILURE);
 	bool quit = false;
+	
 	g.initGrid(GRIDSIZEX, GRIDSIZEY);
+	
+	// Calculating FPS
+	int frame_count = 0;
+	auto one_sec = std::chrono::high_resolution_clock::now();
+	auto clock = std::chrono::high_resolution_clock::now();
 
 	while(!quit) {
+		frame_count++;
+		// All input
 		quit = s.handleInput();
-		s.preRender();
-		render();
-		s.postRender();
-		physics();
-
-		// Continually generate/delete particles if mouse button is held
-		if(global.lbutton_down)
-			generateParticles();
-		else if(global.rbutton_down)
-			deleteParticles();
+		// Main program display
+		if(!global.pause) {
+			// Continually generate/delete particles if mouse button is held
+			if(global.lbutton_down)
+				generateParticles();
+			if(global.rbutton_down)
+				deleteParticles();
+			s.preRender();
+			render();
+			s.postRender();
+			physics();
+		}
 
 		// Top-center flushing out particles
 		if(global.flush) {
@@ -1463,6 +1936,21 @@ int main()
 			float x = g.cells[0][half].x;
 			float y = g.cells[0][half].y;
 			allocateParticle(global.select, x, y, half, 0);
+		}
+
+		// FPS count
+		auto now = std::chrono::high_resolution_clock::now();
+		std::chrono::duration<float, std::milli> update = now-one_sec;
+
+		if(update.count() >= 1000) {
+			// Restart the sec
+			one_sec = std::chrono::high_resolution_clock::now();
+			
+			now = std::chrono::high_resolution_clock::now();
+			std::chrono::duration<float, std::milli> elapsed = now-clock;
+			
+			printf("\rFPS: %.2f", frame_count / (elapsed.count() / 1000.0f));
+			fflush(stdout);
 		}
 	}
 
