@@ -628,7 +628,7 @@ class SDL_Wrapper {
 	{
 		int extra = strlen(mes);
 		if(message[i] == NULL) {
-			TTF_Font* Sans = TTF_OpenFont("../Roboto-Black.ttf", size+extra);
+			TTF_Font* Sans = TTF_OpenFont("./Roboto-Black.ttf", size+extra);
 			if(Sans == NULL) {
 				printf("ERROR FONT: %s\n", SDL_GetError());
 				return;
