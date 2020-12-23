@@ -1,10 +1,17 @@
-FILENAME=main
-FLAGS=-lSDL2 -lSDL2_ttf
+OBJ=blocks.o main.o
+EXE=app
+HEADERS=*.h
+LIBS=-lSDL2 -lSDL2_ttf -lm
+ARGS=-c
+CC=g++
 
-all: $(FILENAME)
+all: $(EXE)
 
-$(FILENAME): $(FILENAME).cpp
-	g++ $< -o $@ $(FLAGS)
+%.o: %.cpp $(HEADERS)
+	$(CC) $(ARGS) $< -o $@
+
+$(EXE): $(OBJ)
+	$(CC) $^ -o $@ $(LIBS)
 
 clean:
-	rm -f $(FILENAME)
+	rm $(EXE) *.o

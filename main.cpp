@@ -8,157 +8,7 @@
 #include<SDL2/SDL.h>
 #include<SDL2/SDL_ttf.h>
 
-enum {GRIDSIZEX=200, GRIDSIZEY=200};
-enum {SAND, WATER, WOOD, FIRE, SMOKE, STEAM, SALT, METAL, NUM_PARTICLES};
-// Seconds for fire to spread
-const float SPREADTIME = 0.001f;
-
-void swap(int &a, int &b)
-{
-	int tmp = a;
-	a = b;
-	b = a;
-}
-
-void swap(float &a, float &b)
-{
-	float tmp = a;
-	a = b;
-	b = a;
-}
-
-float getLength(float* a, float* b)
-{
-	float xdiff = a[0] - b[0];
-	float ydiff = a[1] - b[1];
-	return sqrt(xdiff*xdiff + ydiff*ydiff);
-}
-float getLength(int* a, int* b)
-{
-	float xdiff = a[0] - b[0];
-	float ydiff = a[1] - b[1];
-	return sqrt(xdiff*xdiff + ydiff*ydiff);
-}
-
-// Generic Particle Class
-class Particle {
-	public:
-	float x;
-	float y;
-	short int id;
-	short int vel[2];
-	short int acc;
-	// Terminal acceleration
-	short int Tacc;
-	short int color[3];
-	bool doKill = false;
-	// Reference to cell number
-	int cellx;
-	int celly;
-	int idx;
-
-	Particle() {}
-	void initParticle(float x, float y, int id, int cellx, int celly, int idx)
-	{
-		this->x = x;
-		this->y = y;
-		this->id = id;
-		this->cellx = cellx;
-		this->celly = celly;
-		this->idx = idx;
-
-		switch(this->id) {
-			case SAND: 
-				color[0] = 255;
-				color[1] = 255;
-				color[2] = 0;
-				vel[0] = 1;
-				vel[1] = 1;
-				acc = 6;
-				Tacc = 6;
-				break;
-			case WATER: 
-				color[0] = 0;
-				color[1] = 30;
-				color[2] = 255;
-				vel[0] = 1;
-				vel[1] = 1;
-				acc = 4;
-				Tacc = 4;
-				break;
-			case WOOD: 
-				color[0] = 196;
-				color[1] = 154;
-				color[2] = 107;
-				vel[0] = 0;
-				vel[1] = 0;
-				acc = 0;
-				Tacc = 0;
-				break;
-			case FIRE: 
-				color[0] = 255;
-				color[1] = 150;
-				color[2] = 0;
-				vel[0] = 1;
-				vel[1] = 1;
-				acc = 0;
-				Tacc = 0;
-				break;
-			case SMOKE: 
-				color[0] = 155;
-				color[1] = 155;
-				color[2] = 155;
-				vel[0] = 1;
-				vel[1] = 1;
-				acc = 0;
-				Tacc = 0;
-				break;
-			case STEAM: 
-				color[0] = 180;
-				color[1] = 180;
-				color[2] = 180;
-				vel[0] = 1;
-				vel[1] = 1;
-				acc = 0;
-				Tacc = 0;
-				break;
-			case SALT:
-				color[0] = 255;
-				color[1] = 255;
-				color[2] = 255;
-				vel[0] = 1;
-				vel[1] = 1;
-				acc = 6;
-				Tacc = 6;
-				break;
-			case METAL: 
-				color[0] = 180;
-				color[1] = 180;
-				color[2] = 180;
-				vel[0] = 1;
-				vel[1] = 1;
-				acc = 0;
-				Tacc = 0;
-				break;
-		}
-	}
-	void reinit()
-	{
-		initParticle(x, y, id, cellx, celly, idx);
-	}
-	void operator=(Particle p)
-	{
-		initParticle(p.x, p.y, p.id, p.cellx, p.celly, p.idx);
-		for(int i=0; i<3; i++)
-			this->color[i] = p.color[i];
-	}
-	void printInfo()
-	{
-		printf("Particle\n=========\nID: %i, IDX: %i, COLOR: %i, %i, %i,\
-				ACC: %i\n\n", id, idx, color[0], color[1], color[2],\
-			       acc);	
-	}
-};
+#include "blocks.h"
 
 // Global
 class Global {
@@ -180,8 +30,8 @@ class Global {
 	
 	Global()
 	{
-		xres = 800;
-		yres = 800;
+		xres = 1600;
+		yres = 1600;
 		p = nullptr;
 		pcount = 0;
 		// Which type of particle to generate
@@ -197,83 +47,7 @@ class Global {
 	}
 } global;
 
-// Classes for cells & grid
-class Cell {
-	public:
-	int x;
-	int y;
-	int w;
-	int h;
-	bool taken;
-	int idx;
-	int id;
-
-	Cell() {}
-	void initCell(int x, int y, int w, int h)
-	{
-		this->x = x;
-		this->y = y;
-		this->w = w;
-		this->h = h;
-		taken = false;
-		idx = -1;
-		id = -1;
-	}
-	void operator=(Cell c)
-	{
-		this->x = c.x;
-		this->y = c.y;
-		this->w = c.w;
-		this->h = c.h;
-		this->id = c.id;
-		this->idx = c.idx;
-		this->taken = c.taken;
-	}
-};
-
-class Grid {
-	public:
-	Cell** cells;
-	int max_rows;
-	int max_cols;
-
-	Grid() { cells = nullptr; }
-	~Grid()
-	{
-		if(cells != nullptr) {
-			for(int i=0; i<max_rows; i++) {
-				delete cells[i];
-				cells[i] = nullptr;
-			}
-			delete cells;
-			cells = nullptr;
-		}
-	}
-	void initGrid(int max_rows, int max_cols)
-	{
-		this->max_rows = max_rows;
-		this->max_cols = max_cols;
-		float width = (float)global.xres / (float)max_cols;
-		float height = (float)global.yres / (float)max_rows;
-		
-		// Pointers & instantiation
-		cells = new Cell *[max_rows];
-		for(int i=0; i<max_cols; i++)
-			cells[i] = new Cell[max_cols];
-
-		// Initialization
-		int x = 0;
-		int y = 0;
-		for(int i=0; i<max_rows; i++) {
-			x = 0;
-			for(int j=0; j<max_cols; j++) {
-				cells[i][j].initCell(x, y, width, height);
-				x += width;
-			}
-			y += height;
-		}
-	}
-} g;
+Grid g;
 
 void allocateParticle(int id, int x, int y, int cellx, int celly)
 {
@@ -691,7 +465,8 @@ void generateParticles()
 	if(closest_dist < global.radius) {
 		allocateParticle(global.select,
 			       g.cells[celly_idx][cellx_idx].x,
-		       g.cells[celly_idx][cellx_idx].y,	cellx_idx, celly_idx);
+		       	   g.cells[celly_idx][cellx_idx].y,
+				   cellx_idx, celly_idx);
 	}
 
 }
@@ -725,6 +500,8 @@ void changeParticle(Particle req, int idx)
 	global.p[idx].y = y;
 	global.p[idx].idx = idx;
 }
+
+// Begin - How each particle type reacts with its environment
 
 void updateWater(int idx)
 {
@@ -1762,6 +1539,8 @@ void updateMetal(int idx)
 	}
 }
 
+// End ********************
+
 void physics()
 {
 	static auto time_since_burn = std::chrono::high_resolution_clock::now();
@@ -1906,7 +1685,7 @@ int main()
 		exit(EXIT_FAILURE);
 	bool quit = false;
 	
-	g.initGrid(GRIDSIZEX, GRIDSIZEY);
+	g.initGrid(GRIDSIZEX, GRIDSIZEY, global.xres, global.yres);
 	
 	// Calculating FPS
 	int frame_count = 0;
