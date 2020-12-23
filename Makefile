@@ -1,7 +1,7 @@
 OBJ=blocks.o main.o
 EXE=app
 HEADERS=*.h
-LIBS=-lSDL2 -lSDL2_ttf -lm
+LIBS=-lSDL2 -lSDL2_ttf -lSDL2_image -lm
 ARGS=-c
 CC=g++
 

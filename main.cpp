@@ -7,6 +7,7 @@
 
 #include<SDL2/SDL.h>
 #include<SDL2/SDL_ttf.h>
+#include<SDL2/SDL_image.h>
 
 #include "blocks.h"
 
@@ -131,6 +132,7 @@ class SDL_Wrapper {
 	SDL_Surface* screen_surface;
 	SDL_Renderer* rend;
 	SDL_Texture* message[NUM_PARTICLES];
+	SDL_Texture* blockTextures[NUM_PARTICLES];
 	SDL_Event e;
 	public:
 
@@ -141,12 +143,21 @@ class SDL_Wrapper {
 		rend = NULL;
 		for(int i=0; i<NUM_PARTICLES; i++)
 			message[i] = NULL;
+		//Initialize PNG loading
+		int imgFlags = IMG_INIT_PNG;
+		if( !( IMG_Init( imgFlags ) & imgFlags ) )
+		{
+			printf( "SDL_image could not initialize! SDL_image Error: %s\n", IMG_GetError() );
+		}
 	}
 	~SDL_Wrapper()
 	{
 		SDL_FreeSurface(screen_surface);
-		for(int i=0; i<NUM_PARTICLES; i++)
+		for(int i=0; i<NUM_PARTICLES; i++) {
+			if(blockTextures[i] != NULL)
+				SDL_DestroyTexture(blockTextures[i]);
 			SDL_DestroyTexture(message[i]);
+		}
 		SDL_DestroyWindow(window);
 		SDL_Quit();
 		printf("Successful exit\n");
@@ -170,6 +181,7 @@ class SDL_Wrapper {
 			printf("ERROR RENDERER: %s\n", SDL_GetError());
 			return 1;
 		}
+		loadTextures();
 		TTF_Init();
 		
 		return 0;
@@ -398,6 +410,117 @@ class SDL_Wrapper {
 		rect.h = h;
 		SDL_RenderFillRect(rend, &rect);
 	}
+	void loadTextures()
+	{
+		for(int i=0; i<NUM_PARTICLES; i++) {
+			switch (i)
+			{
+			case SAND:
+				blockTextures[i] = IMG_LoadTexture(rend, "./Blocks/sand/tile0.png");
+				break;
+			case WATER:
+				blockTextures[i] = IMG_LoadTexture(rend, "./Blocks/water/tile0.png");
+				break;
+			case FIRE:
+				blockTextures[i] = IMG_LoadTexture(rend, "./Blocks/fire/tile0.png");
+				break;
+			case WOOD:
+				blockTextures[i] = IMG_LoadTexture(rend, "./Blocks/wood/tile0.png");
+				break;
+			case SMOKE:
+				blockTextures[i] = IMG_LoadTexture(rend, "./Blocks/smoke/tile0.png");
+				break;
+			case STEAM:
+				blockTextures[i] = IMG_LoadTexture(rend, "./Blocks/steam/tile0.png");
+				break;
+			default:
+				break;
+			}
+		}
+	}
+	void updateTextures()
+	{
+
+		const int FIRE_SPRITE_NUM = 2;
+		const int WATER_SPRITE_NUM = 3;
+		const int SMOKE_SPRITE_NUM = 4;
+		const int STEAM_SPRITE_NUM = 4;
+
+		static int update = 0;
+
+		// How often to change between textures, i.e. Water movement, fire movement, etc.
+		static int waterNum = 0;
+		static int fireNum = 0;
+		static int smokeNum = 0;
+		static int steamNum = 0;
+		
+		const std::string waterFile = "./Blocks/water/tile" + std::to_string(waterNum) + ".png";
+		const std::string fireFile = "./Blocks/fire/tile" + std::to_string(fireNum) + ".png";
+		const std::string smokeFile = "./Blocks/smoke/tile" + std::to_string(smokeNum) + ".png";
+		const std::string steamFile = "./Blocks/steam/tile" + std::to_string(steamNum) + ".png";
+		
+		blockTextures[WATER] = IMG_LoadTexture(rend, waterFile.c_str());
+		blockTextures[FIRE] = IMG_LoadTexture(rend, fireFile.c_str());
+		blockTextures[SMOKE] = IMG_LoadTexture(rend, smokeFile.c_str());
+		blockTextures[STEAM] = IMG_LoadTexture(rend, steamFile.c_str());
+
+		// Move to next sprite frame
+		update++;
+		if(update % 2 == 0) {
+			fireNum++;
+		}
+		if(update % 5 == 0) {
+			waterNum++;
+			smokeNum++;
+		}
+		if(update >= 10) {
+			steamNum++;
+			update = 0;
+		}
+
+		// Safe guards
+		if(waterNum >= WATER_SPRITE_NUM) {
+			waterNum = 0;
+		}
+		if(smokeNum >= SMOKE_SPRITE_NUM) {
+			smokeNum = 0;
+		}
+		if(steamNum >= STEAM_SPRITE_NUM) {
+			steamNum = 0;
+		}
+		if(fireNum >= FIRE_SPRITE_NUM) {
+			fireNum = 0;
+		}
+	}
+	void drawTexture(int x, int y, int id)
+	{
+		SDL_Rect textureRect;
+		textureRect.x = x;
+		textureRect.y = y;
+		textureRect.w = textureRect.h = P_SIZE;
+		switch (id) {
+		case SAND:
+			SDL_RenderCopy(rend, blockTextures[SAND], NULL, &textureRect);
+			break;
+		case WATER:
+			SDL_RenderCopy(rend, blockTextures[WATER], NULL, &textureRect);
+			break;
+		case FIRE:
+			SDL_RenderCopy(rend, blockTextures[FIRE], NULL, &textureRect);
+			break;
+		case WOOD:
+			SDL_RenderCopy(rend, blockTextures[WOOD], NULL, &textureRect);
+			break;
+		case SMOKE:
+			SDL_RenderCopy(rend, blockTextures[SMOKE], NULL, &textureRect);
+			break;
+		case STEAM:
+			SDL_RenderCopy(rend, blockTextures[STEAM], NULL, &textureRect);
+			break;
+		default:
+			break;
+		}
+	}
 	void drawText(int x, int y, int w, int h, const char* mes, int size, int i)
 	{
 		int extra = strlen(mes);
@@ -412,12 +535,12 @@ class SDL_Wrapper {
 			message[i] = SDL_CreateTextureFromSurface(rend, surface);
 			SDL_FreeSurface(surface);
 		}
-		SDL_Rect Message_rect;
-		Message_rect.x = x+extra;
-		Message_rect.y = y+extra;
-		Message_rect.w = w+extra;
-		Message_rect.h = h;
-		SDL_RenderCopy(rend, message[i], NULL, &Message_rect);
+		SDL_Rect MessageRect;
+		MessageRect.x = x+extra;
+		MessageRect.y = y+extra;
+		MessageRect.w = w+extra;
+		MessageRect.h = h;
+		SDL_RenderCopy(rend, message[i], NULL, &MessageRect);
 	}
 } s;
 
@@ -1665,12 +1788,11 @@ void render()
 	}
 	*/
 
+	s.updateTextures();
+
 	// Draw particles
 	for(int i=0; i<global.pcount; i++) {
-		s.setColor(global.p[i].color[0],global.p[i].color[1], global.p[i].color[2]);
-		int w = g.cells[global.p[i].celly][global.p[i].cellx].w;
-		int h = g.cells[global.p[i].celly][global.p[i].cellx].h;
-		s.fillRect(global.p[i].x, global.p[i].y, w, h);
+		s.drawTexture(global.p[i].x, global.p[i].y, global.p[i].id);
 	}
 
 	// Menu overlaps particles

@@ -3,6 +3,8 @@
 
 #include <cmath>
 
+const int P_SIZE = 16;
+
 enum {GRIDSIZEX=200, GRIDSIZEY=200};
 enum {SAND, WATER, WOOD, FIRE, SMOKE, STEAM, SALT, METAL, NUM_PARTICLES};
 // Seconds for fire to spread
