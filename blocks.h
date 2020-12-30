@@ -4,11 +4,26 @@
 #include <cmath>
 
 const int P_SIZE = 16;
+const int MAX_CHUNK_SIZE = 512;
 
-enum {GRIDSIZEX=200, GRIDSIZEY=200};
-enum {SAND, WATER, WOOD, FIRE, SMOKE, STEAM, SALT, METAL, NUM_PARTICLES};
+enum {GRIDSIZEX=16, GRIDSIZEY=16};
+enum {AIR=-1, SAND=0, WATER, WOOD, FIRE, SMOKE, STEAM, SALT, METAL, NUM_PARTICLES};
 // Seconds for fire to spread
 const float SPREADTIME = 0.001f;
+
+inline float getDist(float a[2], float b[2])
+{
+	float xdiff = a[0] - b[0];
+	float ydiff = a[1] - b[1];
+	return sqrt(xdiff*xdiff + ydiff*ydiff);
+}
+
+inline void swap(short int &a, short int &b)
+{
+	short int tmp = a;
+	a = b;
+	b = a;
+}
 
 inline void swap(int &a, int &b)
 {
@@ -22,12 +37,6 @@ inline void swap(float &a, float &b)
 	float tmp = a;
 	a = b;
 	b = a;
-}
-inline float getLength(float* a, float* b)
-{
-	float xdiff = a[0] - b[0];
-	float ydiff = a[1] - b[1];
-	return sqrt(xdiff*xdiff + ydiff*ydiff);
 }
 inline float getLength(int* a, int* b)
 {
@@ -46,7 +55,6 @@ class Particle {
 	short int acc;
 	// Terminal acceleration
 	short int Tacc;
-	short int color[3];
 	bool doKill = false;
 	// Reference to cell number
 	int cellx;
@@ -54,14 +62,13 @@ class Particle {
 	int idx;
 
 	Particle() {}
+
 	void initParticle(float x, float y, int id, int cellx, int celly, int idx);
-	
 	void reinit();
-
+	void modify(int);
+	void swap(Particle&);
 	void operator=(Particle p);
-
 	void printInfo();
-
 };
 
 // Classes for cells & grid
@@ -74,10 +81,17 @@ class Cell {
 	bool taken;
 	int idx;
 	int id;
+	int cellRow;
+	int cellCol;
 
-	Cell() {}
-	void initCell(int x, int y, int w, int h);
-	void operator=(Cell c);
+	Cell* down;
+	Cell* up;
+	Cell* left;
+	Cell* right;
+
+	Cell();
+	void initCell(int, int, int, int, int, int);
+	void operator=(Cell);
 };
 
 class Grid {
@@ -88,7 +102,36 @@ class Grid {
 
 	Grid();
 	~Grid();
-	void initGrid(int max_rows, int max_cols, int xres, int yres);
+	void initGrid(float, float);
+};
+
+class Chunk {
+	public:
+	Grid g;
+	Particle* blocks;
+	int blockCount;
+	float startX;
+	float startY;
+	int chunkID;
+	bool doRender;
+
+	Chunk* up;
+	Chunk* down;
+	Chunk* left;
+	Chunk* right;
+
+	Chunk();
+	~Chunk();
+
+	void initChunk(int, float, float);
+	void loadChunk();
+	bool allocateBlock(int, int, int);
+	bool allocateBlock(Particle&, int, int);
+	bool deallocateBlocks();
+	void updateCellInfo(int idx);
+	bool within(float, float);
+	void updateBlocks();
+	void blockPhysics();
 };
 
 #endif
