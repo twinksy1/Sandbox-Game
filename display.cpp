@@ -102,30 +102,16 @@ void Display::fillRect(int x, int y, int w, int h)
 void Display::loadTextures()
 {
     for(int i=0; i<NUM_PARTICLES; i++) {
-        switch (i)
-        {
-        case SAND:
-            blockTextures[i] = IMG_LoadTexture(rend, "./Blocks/sand/tile0.png");
-            break;
-        case WATER:
-            blockTextures[i] = IMG_LoadTexture(rend, "./Blocks/water/tile0.png");
-            break;
-        case FIRE:
-            blockTextures[i] = IMG_LoadTexture(rend, "./Blocks/fire/tile0.png");
-            break;
-        case WOOD:
-            blockTextures[i] = IMG_LoadTexture(rend, "./Blocks/wood/tile0.png");
-            break;
-        case SMOKE:
-            blockTextures[i] = IMG_LoadTexture(rend, "./Blocks/smoke/tile0.png");
-            break;
-        case STEAM:
-            blockTextures[i] = IMG_LoadTexture(rend, "./Blocks/steam/tile0.png");
-            break;
-        default:
-            break;
+        std::string block = BLOCK_TYPES[i];
+        int strlen = block.length();
+        for(int j=0; j<strlen; j++) {
+            block[j] = block[j] - ('Z' - 'z');
         }
+        std::string filepath = "./Blocks/" + block + "/tile0.png";
+        //printf("%s\n", filepath.c_str());
+        blockTextures[i] = IMG_LoadTexture(rend, filepath.c_str());
     }
+    bg = IMG_LoadTexture(rend, "./background.jpg");
 }
 void Display::updateTextures()
 {
@@ -187,28 +173,16 @@ void Display::drawTexture(int x, int y, int id)
     textureRect.x = x;
     textureRect.y = y;
     textureRect.w = textureRect.h = P_SIZE;
-    switch (id) {
-    case SAND:
-        SDL_RenderCopy(rend, blockTextures[SAND], NULL, &textureRect);
-        break;
-    case WATER:
-        SDL_RenderCopy(rend, blockTextures[WATER], NULL, &textureRect);
-        break;
-    case FIRE:
-        SDL_RenderCopy(rend, blockTextures[FIRE], NULL, &textureRect);
-        break;
-    case WOOD:
-        SDL_RenderCopy(rend, blockTextures[WOOD], NULL, &textureRect);
-        break;
-    case SMOKE:
-        SDL_RenderCopy(rend, blockTextures[SMOKE], NULL, &textureRect);
-        break;
-    case STEAM:
-        SDL_RenderCopy(rend, blockTextures[STEAM], NULL, &textureRect);
-        break;
-    default:
-        break;
-    }
+    SDL_RenderCopy(rend, blockTextures[id], NULL, &textureRect);
+}
+void Display::drawBackground(int x, int y, int w, int h)
+{
+    SDL_Rect textureRect;
+    textureRect.x = x;
+    textureRect.y = y;
+    textureRect.w = w;
+    textureRect.h = h;
+    SDL_RenderCopy(rend, bg, NULL, &textureRect);
 }
 void Display::drawText(int x, int y, int w, int h, const char* mes, int size, int i)
 {

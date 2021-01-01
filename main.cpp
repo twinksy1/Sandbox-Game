@@ -100,33 +100,7 @@ void mainMenu()
 			}
 		}
 		s.drawTexture(x+offsetx, y+offsety, i);
-		// Menu options
-		switch(i) {
-			case SAND:
-				s.drawText(x, y+(offsety/2), w, h, "SAND", textSize, i);
-				break;
-			case WATER:
-				s.drawText(x, y+(offsety/2), w, h, "WATER", textSize, i);
-				break;
-			case WOOD:
-				s.drawText(x, y+(offsety/2), w, h, "WOOD", textSize, i);
-				break;
-			case FIRE:
-				s.drawText(x, y+(offsety/2), w, h, "FIRE", textSize, i);
-				break;
-			case SMOKE:
-				s.drawText(x, y+(offsety/2), w, h, "SMOKE", textSize, i);
-				break;
-			case STEAM:
-				s.drawText(x, y+(offsety/2), w, h, "STEAM", textSize, i);
-				break;
-			case SALT:
-				s.drawText(x, y+(offsety/2), w, h, "SALT", textSize, i);
-				break;
-			case METAL:
-				s.drawText(x, y+(offsety/2), w, h, "METAL", textSize, i);
-				break;
-		}
+		s.drawText(x, y+(offsety/2), w, h, BLOCK_TYPES[i].c_str(), textSize, i);
 		x += 2*offsetx;
 	}
 }
@@ -156,9 +130,12 @@ void debugDrawChunks()
 
 void render()
 {
-	/*
-	
-	*/
+	int startx = game.chunks[0][0].startX;
+	int starty = game.chunks[0][0].startY;
+	int w = game.chunks[0][CHUNKSX-1].startX;
+	int h = yres;
+	s.drawBackground(startx, starty, w, h);
+
 
 	s.updateTextures();
 	if(game.debugMode) {
@@ -197,6 +174,7 @@ void render()
 
 int main(int argc, char** argv)
 {
+	srand(time(NULL));
 	// SDL
 	if(s.init())
 		exit(EXIT_FAILURE);
@@ -214,24 +192,14 @@ int main(int argc, char** argv)
 		// Main program display
 		
 		// Continually generate/delete particles if mouse button is held
-		if(game.lbutton_down)
+		if(game.lbutton_down && !game.show_menu) {
 			game.chunks[game.curChunkY][game.curChunkX].allocateBlock(game.select, game.mousex, game.mousey);
-/*		if(game.rbutton_down)
-			deleteParticles();
-			// s.preRender();
-			// render();
-			// s.postRender();
-			// physics();
-*/
-		// Top-center flushing out particles
-		if(game.flush) {
-			/*
-			int half = g.max_cols / 2;
-			float x = g.cells[0][half].x;
-			float y = g.cells[0][half].y;
-			allocateParticle(game.select, x, y, half, 0);
-			*/
 		}
+		if(game.rbutton_down) {
+			float mousePos[2] = {(float)game.mousex, (float)game.mousey};
+            game.chunks[game.curChunkY][game.curChunkX].deallocateBlocks(mousePos);
+		}
+
 		s.preRender();
 		render();
 		s.postRender();

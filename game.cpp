@@ -97,10 +97,42 @@ Game::~Game()
 {
 }
 
+void Game::displayCellInfo(float* pos)
+{
+    Chunk* cur = &chunks[curChunkY][curChunkX];
+    int idxX, idxY;
+    float minDist = 9999.9f;
+    int rows = cur->g.max_rows;
+    int cols = cur->g.max_cols;
+    for(int i=0; i<rows; i++) {
+        for(int j=0; j<cols; j++) {
+            float cellPos[2] = {(float)cur->g.cells[i][j].x, 
+                                (float)cur->g.cells[i][j].y };
+            float dist = getDist(cellPos, pos);
+            if(dist < minDist) {
+                minDist = dist;
+                idxX = j;
+                idxY = i;
+            }
+        }
+    }
+
+    printf("\nCHUNK #%i: [%i][%i]\n", cur->chunkID, idxY, idxX);
+    printf("IDX: %i, ID: %i, TAKEN: %i, Instances: %i\n", cur->g.cells[idxY][idxX].idx,\
+            cur->g.cells[idxY][idxX].id, cur->g.cells[idxY][idxX].taken, cur->g.cells[idxY][idxX].instances);
+
+    for(int i=0; i<cur->blockCount; i++) {
+        if(cur->blocks[i].cellx == idxX && cur->blocks[i].celly == idxY) {
+            printf("\tPARTICLE: idx: %i, id: %i\n", cur->blocks[i].idx, cur->blocks[i].id);
+        }
+    }
+}
+
 void Game::pan(int dir)
 {
     if(dir == -1) {
-        // Left 
+        // Left
+        if(chunks[CHUNKSY-1][0].startX - cam.panSpeed > 0) return;
         for(int i=0; i<CHUNKSY; i++) {
             for(int j=0; j<CHUNKSX; j++) {
                 chunks[i][j].startX -= cam.panSpeed;
@@ -132,6 +164,7 @@ void Game::pan(int dir)
         }
     } else {
         // Right
+        if(chunks[0][0].startX + cam.panSpeed > 0) return;
         for(int i=0; i<CHUNKSY; i++) {
             for(int j=0; j<CHUNKSX; j++) {
                 chunks[i][j].startX += cam.panSpeed;

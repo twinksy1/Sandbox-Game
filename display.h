@@ -19,6 +19,7 @@ class Display {
 	SDL_Renderer* rend;
 	SDL_Texture* message[NUM_PARTICLES];
 	SDL_Texture* blockTextures[NUM_PARTICLES];
+	SDL_Texture* bg;
 	public:
 
 	Display();
@@ -35,6 +36,7 @@ class Display {
 	void loadTextures();
 	void updateTextures();
 	void drawTexture(int, int, int);
+	void drawBackground(int, int, int, int);
 	void drawText(int, int, int, int, const char*, int, int);
     bool handleInput(Game&);
 };

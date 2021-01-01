@@ -4,80 +4,33 @@
 
 void updateWater(int, Chunk&);
 void updateSand(int, Chunk&);
+void updateWood(int, Chunk&);
+void updateStone(int, Chunk&);
+void updateDirt(int, Chunk&);
+void updateGrass(int, Chunk&);
 
 void Particle::initParticle(float x, float y, int id, int cellx, int celly, int idx)
 {
+	std::ofstream log;
+	log.open("logInfo.txt", std::ios_base::app); // append instead of overwrite
+	if(!log.fail()) {
+		log << "Particle::initParticle()\n";
+		log.close();
+	}
     this->x = x;
     this->y = y;
     this->id = id;
     this->cellx = cellx;
     this->celly = celly;
     this->idx = idx;
-
-    switch(this->id) {
-        case SAND: 
-            vel[0] = 1;
-            vel[1] = 1;
-            acc = 2;
-            Tacc = 2;
-            break;
-        case WATER: 
-            vel[0] = 1;
-            vel[1] = 1;
-            acc = 2;
-            Tacc = 2;
-            break;
-        case WOOD: 
-            vel[0] = 0;
-            vel[1] = 0;
-            acc = 0;
-            Tacc = 0;
-            break;
-        case FIRE: 
-            vel[0] = 1;
-            vel[1] = 1;
-            acc = 0;
-            Tacc = 0;
-            break;
-        case SMOKE: 
-            vel[0] = 1;
-            vel[1] = 1;
-            acc = 0;
-            Tacc = 0;
-            break;
-        case STEAM: 
-            vel[0] = 1;
-            vel[1] = 1;
-            acc = 0;
-            Tacc = 0;
-            break;
-        case SALT:
-            vel[0] = 1;
-            vel[1] = 1;
-            acc = 6;
-            Tacc = 6;
-            break;
-        case METAL: 
-            vel[0] = 1;
-            vel[1] = 1;
-            acc = 0;
-            Tacc = 0;
-            break;
-    }
+	vel[0] = 1;
+	vel[1] = 1;
+	acc = 2;
+	Tacc = 2;
 }
 void Particle::reinit()
 {
     initParticle(x, y, id, cellx, celly, idx);
-}
-void Particle::modify(int newID)
-{
-    this->id = newID;
-}
-void Particle::swap(Particle& other)
-{
-    Particle tmp = other;
-    other = *this;
-    *this = tmp;
 }
 void Particle::operator=(Particle p)
 {
@@ -93,6 +46,7 @@ void Particle::printInfo()
 Cell::Cell()
 {
 	left = right = down = up = nullptr;
+	instances = 0;
 }
 void Cell::initCell(int x, int y, int w, int h, int r, int c)
 {
@@ -119,10 +73,10 @@ void Cell::operator=(Cell c)
 
 
 Grid::Grid() 
-{ 
+{
     cells = nullptr; 
-    max_rows = GRIDSIZEY;
-    max_cols = GRIDSIZEX;
+    max_rows = MAX_CHUNK_SIZE/ GRIDSIZEY;
+    max_cols = MAX_CHUNK_SIZE/ GRIDSIZEX;
 }
 Grid::~Grid()
 {
@@ -139,8 +93,6 @@ void Grid::initGrid(float startX, float startY)
 {
     float width = GRIDSIZEX;
     float height = GRIDSIZEY;
-	max_rows = MAX_CHUNK_SIZE / height;
-	max_cols = MAX_CHUNK_SIZE / width;
 
     if(cells != nullptr) {
         for(int i=0; i<max_rows; i++) {
@@ -220,6 +172,7 @@ void Chunk::loadChunk()
 }
 bool Chunk::allocateBlock(Particle& p, int cellx, int celly)
 {
+	if(g.cells[celly][cellx].instances == 1) return false;
 	if(blockCount < 1) {
 		try {
 			blocks = new Particle;
@@ -229,6 +182,7 @@ bool Chunk::allocateBlock(Particle& p, int cellx, int celly)
 			g.cells[celly][cellx].idx = blocks->idx;
 			g.cells[celly][cellx].id = blocks->id;
 			g.cells[celly][cellx].taken = true;
+			g.cells[celly][cellx].instances++;
 			blockCount = 1;
             return true;
 		} catch(int BAD_ALLOC) {
@@ -247,6 +201,7 @@ bool Chunk::allocateBlock(Particle& p, int cellx, int celly)
 			g.cells[celly][cellx].taken = true;
 			g.cells[celly][cellx].idx = blocks[blockCount].idx;
 			g.cells[celly][cellx].id = blocks[blockCount].id;
+			g.cells[celly][cellx].instances++;
 			delete tmp;
 			tmp = nullptr;
 			blockCount++;
@@ -266,7 +221,7 @@ bool Chunk::allocateBlock(int id, int x, int y)
     for(int i=0; i<g.max_rows; i++) {
         for(int j=0; j<g.max_cols; j++) {
             float cell_pos[2] = {(float)g.cells[i][j].x, 
-                (float)g.cells[i][j].y};
+                				 (float)g.cells[i][j].y};
             float dist = getDist(mouse, cell_pos);
             if(dist < closest_dist && !g.cells[i][j].taken) {
                 closest_dist = dist;
@@ -276,16 +231,24 @@ bool Chunk::allocateBlock(int id, int x, int y)
         }
     }
     if(closest_dist > 25.0f) return false;
+	if(cellx > g.max_cols || cellx < 0 || celly < 0 || celly > g.max_rows) return false;
+	else if(g.cells[celly][cellx].instances == 1) return false;
     x = g.cells[celly][cellx].x;
     y = g.cells[celly][cellx].y;
 
 	if(blockCount < 1) {
 		try {
+			if(blocks != nullptr) {
+				delete blocks;
+				blocks = nullptr;
+			}
 			blocks = new Particle;
+			blockCount = 0;
 			blocks->initParticle(x, y, id, cellx, celly, blockCount);
 			g.cells[celly][cellx].idx = blocks->idx;
 			g.cells[celly][cellx].id = blocks->id;
 			g.cells[celly][cellx].taken = true;
+			g.cells[celly][cellx].instances++;
 			blockCount = 1;
             return true;
 		} catch(int BAD_ALLOC) {
@@ -302,6 +265,7 @@ bool Chunk::allocateBlock(int id, int x, int y)
 			g.cells[celly][cellx].taken = true;
 			g.cells[celly][cellx].idx = blocks[blockCount].idx;
 			g.cells[celly][cellx].id = blocks[blockCount].id;
+			g.cells[celly][cellx].instances++;
 			delete tmp;
 			tmp = nullptr;
 			blockCount++;
@@ -312,6 +276,26 @@ bool Chunk::allocateBlock(int id, int x, int y)
 		}
 	}
 }
+bool Chunk::deallocateBlocks(float* mousePos)
+{
+	for(int i=0; i<g.max_rows; i++) {
+		for(int j=0; j<g.max_cols; j++) {
+			if(g.cells[i][j].taken) {
+				float pos[2] = {(float)g.cells[i][j].x, (float)g.cells[i][j].y};
+				float dist = getDist(pos, mousePos);
+				if(dist < P_SIZE) {
+					int idx = g.cells[i][j].idx;
+					if(idx >= 0 && idx < blockCount) {
+						blocks[g.cells[i][j].idx].doKill = true;
+					} else {
+						unoccupyCell(i, j);
+					}
+				}
+			}
+		}
+	}
+	deallocateBlocks();
+}
 bool Chunk::deallocateBlocks()
 {
 	int kill_count = 0;
@@ -320,42 +304,79 @@ bool Chunk::deallocateBlocks()
 			kill_count++;
 			int xpos = blocks[i].cellx;
 			int ypos = blocks[i].celly;
-			g.cells[ypos][xpos].taken = false;
-			g.cells[ypos][xpos].idx = -1;
-			g.cells[ypos][xpos].id = -1;
+			unoccupyCell(ypos, xpos);
 		}
 	if(kill_count == 0) return true;
 	else if(blockCount - kill_count <= 0) {
 		try {
 			delete blocks;
+		} catch(...) {
+			printf("ERROR: failed to delete old block* in chunk #%i\n", chunkID);
+            return false;
+		}
+		blocks = nullptr;
+		blockCount = 0;
+		return true;
+	} else {
+		Particle* tmp = blocks;
+		int new_count = blockCount - kill_count;
+		blocks = new Particle[new_count];
+		int j=0;
+		for(int i=0; i<blockCount; i++) {
+			if(!tmp[i].doKill && j < new_count) {
+				// Copy if no kill order
+				blocks[j] = tmp[i];
+				blocks[j].idx = j;
+				j++;
+			}
+		}
+		try {
+			delete tmp;
+		} catch(...) {
+			printf("ERROR: failed to delete old block* in chunk #%i\n", chunkID);
+            return false;
+		}
+		tmp = nullptr;
+		blockCount = new_count;
+		return true;
+		
+	}
+}
+bool Chunk::deallocateBlock(int idx)
+{
+	int xpos = blocks[idx].cellx;
+	int ypos = blocks[idx].celly;
+	unoccupyCell(ypos, xpos);
+
+	if(blockCount == 1) {
+		try {
+			delete blocks;
 			blocks = nullptr;
 			blockCount = 0;
-            return true;
+			return true;
 		} catch(int err) {
-			printf("ERROR: failed to deallocate block in chunk #%i\n", chunkID);
-            return false;
+			printf("ERROR: failed to deallocate single block in chunk #%i\n", chunkID);
+			return false;
 		}
 	} else {
 		try {
 			Particle* tmp = blocks;
-			int new_count = blockCount - kill_count;
-			blocks = new Particle[new_count];
-			int j=0;
+			blocks = new Particle[blockCount-1];
+			int j = 0;
 			for(int i=0; i<blockCount; i++) {
-				if(!tmp[i].doKill && j < new_count) {
-					// Copy if no kill order
+				if(i != idx && j < blockCount-1) {
 					blocks[j] = tmp[i];
+					blocks[j].idx = j;
 					j++;
 				}
 			}
-
 			delete tmp;
 			tmp = nullptr;
-			blockCount = new_count;
-            return true;
+			--blockCount;
+			return true;
 		} catch(int err) {
-			printf("ERROR: failed to deallocate block in chunk #%i\n", chunkID);
-            return false;
+			printf("ERROR: failed to deallocate single block in chunk #%i\n", chunkID);
+			return false;
 		}
 	}
 }
@@ -368,9 +389,22 @@ void Chunk::updateBlocks()
         cur->y = g.cells[cur->celly][cur->cellx].y;
     }
 }
+void Chunk::refreshGrid()
+{
+	int rows = g.max_rows;
+	int cols = g.max_cols;
+	for(int i=0; i<rows; i++) {
+		for(int j=0; j<cols; j++) {
+			g.cells[i][j].instances = 0;
+		}
+	}
+}
 void Chunk::blockPhysics()
 {
+	refreshGrid();
 	for(int i=0; i<blockCount; i++) {
+		int celly = blocks[i].celly;
+		int cellx = blocks[i].cellx;
 		// Particle movement & interactions
 		switch(blocks[i].id) {
 			case SAND:
@@ -379,9 +413,18 @@ void Chunk::blockPhysics()
 			case WATER:
 				updateWater(i, *this);
 				break;
-			// case WOOD:
-			// 	updateWood(i);
-			// 	break;
+			case WOOD:
+				updateWood(i, *this);
+				break;
+			case STONE:
+				updateStone(i, *this);
+				break;
+			case DIRT:
+				updateDirt(i, *this);
+				break;
+			case GRASS:
+				updateGrass(i, *this);
+				break;
 			// case FIRE: {
 			// 	// Don't let fire burn instantly
 			// 	auto now = std::chrono::high_resolution_clock::now();
@@ -405,6 +448,12 @@ void Chunk::blockPhysics()
 			// 	updateMetal(i);
 			// 	break;
 		}
+		if(g.cells[celly][cellx].instances > 1) {
+			blocks[i].doKill = true;
+			g.cells[celly][cellx].instances--;
+		} else {
+			g.cells[celly][cellx].instances++;
+		}
 	}
 	deallocateBlocks();
 }
@@ -416,6 +465,7 @@ void Chunk::updateCellInfo(int idx)
 	g.cells[celly][cellx].taken = true;
 	g.cells[celly][cellx].id = blocks[idx].id;
 	g.cells[celly][cellx].idx = idx;
+
 	blocks[idx].x = g.cells[celly][cellx].x;
 	blocks[idx].y = g.cells[celly][cellx].y;
 }
@@ -427,7 +477,17 @@ bool Chunk::within(float x, float y)
     return false;
 }
 
-// Begin - How each block type reacts with its environment
+void Chunk::unoccupyCell(int y, int x)
+{
+	g.cells[y][x].taken = false;
+	g.cells[y][x].id = AIR;
+	g.cells[y][x].idx = -1;
+	g.cells[y][x].instances--;
+	if(g.cells[y][x].instances < 0) {
+		g.cells[y][x].instances = 0;
+	}
+}
+// Begin - How each block type reacts
 
 
 void updateWater(int idx, Chunk& c)
@@ -445,12 +505,14 @@ void updateWater(int idx, Chunk& c)
 	if(curCell->down != nullptr) {
 		if(curCell->down->taken) {
 			isFalling = false;
+			block->vel[1] = 1;
 		}
 	} else {
 		isFalling = false;
+		block->vel[1] = 1;
 	}
 
-	int dir = rand() % 2;
+	int dir = (rand() % 2) + 1;
 
 	// Default water physics
 	if(isFalling) {
@@ -467,50 +529,73 @@ void updateWater(int idx, Chunk& c)
 		} else {
 			if(block->vel[1] < ACC) block->vel[1]++;
 
-			c.g.cells[posy][posx].taken = false;
+			c.unoccupyCell(posy, posx);
 			if(posy + i >= c.g.max_rows) {
-				c.down->allocateBlock(block->id, block->x, block->y);
+				c.down->allocateBlock(*block, tmp->cellCol, tmp->cellRow);
 				block->doKill = true;
 				return;
 			} else {
-				block->celly = posy + i;
+				posy += i;
+				block->celly = posy;
 				c.updateCellInfo(idx);
 				curCell = tmp;
 			}
 		}
-	} else {
-		if(dir == 0) {
-			if(curCell->left != nullptr) {
-				if(!curCell->left->taken) {
-					c.g.cells[posy][posx].taken = false;
-					if(posx > 0) {
-						block->cellx = posx - 1;
-						c.updateCellInfo(idx);
-					} else {
-						c.left->allocateBlock(*block, curCell->left->cellCol, curCell->left->cellRow);
-						block->doKill = true;
-						return;
-					}
+	}
+
+	if(dir == 1) {
+		if(curCell->left != nullptr) {
+			if(!curCell->left->taken) {
+				c.unoccupyCell(posy, posx);
+				if(posx > 0) {
+					posx -= 1;
+					block->cellx = posx;
+					c.updateCellInfo(idx);
+				} else {
+					c.left->allocateBlock(*block, curCell->left->cellCol, curCell->left->cellRow);
+					block->doKill = true;
 				}
 			}
-		} else {
-			if(curCell->right != nullptr) {
-				if(!curCell->right->taken) {
-					c.g.cells[posy][posx].taken = false;
-					if(posx != c.g.max_cols-1) {
-						block->cellx = posx + 1;
-						c.updateCellInfo(idx);
-					} else {
-						c.right->allocateBlock(block->id, block->x, block->y);
-						block->doKill = true;
-						return;
-					}
+		}
+	} else {
+		if(curCell->right != nullptr) {
+			if(!curCell->right->taken) {
+				c.unoccupyCell(posy, posx);
+				if(posx < c.g.max_cols-1) {
+					posx += 1;
+					block->cellx = posx;
+					c.updateCellInfo(idx);
+				} else {
+					c.right->allocateBlock(*block, curCell->right->cellCol, curCell->right->cellRow);
+					block->doKill = true;
 				}
 			}
 		}
 	}
+	
 
-	// Handling environment (other blocks)
+	// Block environment reactions
+
+	// ------With sand
+	// if(curCell->up != nullptr) {
+	// 	if(curCell->up->taken && curCell->up->id == SAND) {
+	// 		// Both pass chunks
+	// 		if(block->celly - 1 < 0) {
+	// 			block->id = SAND;
+	// 			Particle* sandBlock = &c.up->blocks[curCell->up->idx];
+	// 			sandBlock->id = WATER;
+	// 			c.updateCellInfo(idx);
+	// 			c.up->updateCellInfo(sandBlock->idx);
+	// 			return;
+	// 		} else {
+	// 			Particle* sandBlock = &c.blocks[curCell->up->idx];
+	// 			block->celly--;
+	// 			sandBlock->celly++;
+	// 			c.updateCellInfo(idx);
+	// 			c.updateCellInfo(curCell->up->idx);
+	// 		}
+	// 	}
+	// }
 }
 
 void updateSand(int idx, Chunk& c)
@@ -529,8 +614,11 @@ void updateSand(int idx, Chunk& c)
 
 	Cell* curCell = &c.g.cells[posy][posx];
 	if(curCell->down != nullptr) {
-		if(curCell->down->taken) {
+		if(curCell->down->taken && curCell->down->id == WATER) {
 			isFalling = false;
+		} else if(curCell->down->taken) {
+			isFalling = false;
+			block->vel[1] = 1;
 			bool foundSpot = false;
 			if(curCell->down->left != nullptr) {
 				if(!curCell->down->left->taken) {
@@ -548,6 +636,7 @@ void updateSand(int idx, Chunk& c)
 		}
 	} else {
 		isFalling = false;
+		block->vel[1] = 1;
 	}
 
 	// Default sand physics
@@ -565,7 +654,7 @@ void updateSand(int idx, Chunk& c)
 		} else {
 			if(block->vel[1] < ACC) block->vel[1]++;
 
-			c.g.cells[posy][posx].taken = false;
+			c.unoccupyCell(posy, posx);
 			if(posy + i >= c.g.max_rows) {
 				c.down->allocateBlock(*block, tmp->cellCol, tmp->cellRow);
 				block->doKill = true;
@@ -576,23 +665,21 @@ void updateSand(int idx, Chunk& c)
 				curCell = tmp;
 			}
 		}
+		return;
 	} else if(striveL) {
-		c.g.cells[posy][posx].taken = false;
+		c.unoccupyCell(posy, posx);
 		// Bottom left corner
 		if(posy + 1 >= c.g.max_rows && posx - 1 < 0) {
-			c.down->left->allocateBlock(block->id, block->x, block->y);
+			c.down->left->allocateBlock(*block, curCell->down->left->cellCol, curCell->down->left->cellRow);
 			block->doKill = true;
-			return;
 		}
 		// Bottom
 		else if(posy + 1 >= c.g.max_rows) {
-			c.down->allocateBlock(block->id, block->x, block->y);
+			c.down->allocateBlock(*block, curCell->down->left->cellCol, curCell->down->left->cellRow);
 			block->doKill = true;
-			return;
 		} else if(posx - 1 < 0) {
-			c.left->allocateBlock(block->id, block->x, block->y);
+			c.left->allocateBlock(*block, curCell->down->left->cellCol, curCell->down->left->cellRow);
 			block->doKill = true;
-			return;
 		} else {
 			// Left
 			block->celly++;
@@ -600,31 +687,29 @@ void updateSand(int idx, Chunk& c)
 			c.updateCellInfo(idx);
 			curCell = curCell->down->left;
 		}
+		return;
 	} else if(striveR) {
-		c.g.cells[posy][posx].taken = false;
+		c.unoccupyCell(posy, posx);
 		// Bottom right corner
 		if(posy + 1 >= c.g.max_rows && posx + 1 >= c.g.max_cols) {
-			c.down->right->allocateBlock(block->id, block->x, block->y);
+			c.down->right->allocateBlock(*block, curCell->down->right->cellCol, curCell->down->right->cellRow);
 			block->doKill = true;
-			return;
 		}
 		// Bottom
 		else if(posy + 1 >= c.g.max_rows) {
-			c.down->allocateBlock(block->id, block->x, block->y);
+			c.down->allocateBlock(*block, curCell->down->right->cellCol, curCell->down->right->cellRow);
 			block->doKill = true;
-			return;
 		} else if(posx + 1 >= c.g.max_cols) {
-			c.right->allocateBlock(block->id, block->x, block->y);
+			c.right->allocateBlock(*block, curCell->down->right->cellCol, curCell->down->right->cellRow);
 			block->doKill = true;
-			return;
 		} else {
-			// Left
+			// Right
 			block->celly++;
 			block->cellx++;
 			c.updateCellInfo(idx);
 			curCell = curCell->down->right;
-			return;
 		}
+		return;
 	}
 
 	// Block environment reactions
@@ -634,31 +719,261 @@ void updateSand(int idx, Chunk& c)
 		if(curCell->down->taken && curCell->down->id == WATER) {
 			// Both pass chunks
 			if(block->celly + 1 >= c.g.max_rows) {
-				Particle* waterBlock = &c.down->blocks[curCell->down->idx];
-				c.g.cells[block->celly][block->cellx].taken = false;
-				c.down->g.cells[block->celly][block->cellx].taken = false;
-				c.allocateBlock(waterBlock->id, waterBlock->x, waterBlock->y);
-				c.down->allocateBlock(block->id, block->x, block->y);
-				block->doKill = true;
-				waterBlock->doKill = true;
-				return;
+				int waterIdx = curCell->down->idx;
+				if(waterIdx >= 0 && waterIdx < c.down->blockCount) {
+					Particle* waterBlock = &c.down->blocks[waterIdx];
+					block->id = WATER;
+					waterBlock->id = SAND;
+					c.down->updateCellInfo(waterIdx);
+					c.updateCellInfo(idx);
+				} else {
+					c.down->unoccupyCell(curCell->down->cellRow, curCell->down->cellCol);
+				}
+			} else {
+				int waterIdx = curCell->down->idx;
+				if(waterIdx > 0 && waterIdx < c.blockCount) {
+					Particle* waterBlock = &c.blocks[waterIdx];
+					block->id = WATER;
+					waterBlock->id = SAND;
+					c.updateCellInfo(idx);
+					c.updateCellInfo(waterIdx);
+				} else {
+					c.unoccupyCell(curCell->down->cellRow, curCell->down->cellCol);
+				}
 			}
-			Particle* waterBlock = &c.blocks[curCell->down->idx];
-			block->celly++;
-			waterBlock->celly--;
-			c.updateCellInfo(idx);
-			c.updateCellInfo(curCell->down->idx);
 		}
 	}
 }
-/*
-void updateWood(int idx)
+
+void updateDirt(int idx, Chunk& c)
+{
+	c.updateCellInfo(idx);
+
+	Particle* block = &c.blocks[idx];
+	const short int ACC = block->Tacc;
+	// Position of current cell
+	int posx = block->cellx;
+	int posy = block->celly;
+
+	bool isFalling = true;
+	bool striveR = false;
+	bool striveL = false;
+
+	Cell* curCell = &c.g.cells[posy][posx];
+	if(curCell->down != nullptr) {
+		if(curCell->down->taken && curCell->down->id == WATER) {
+			isFalling = false;
+		} else if(curCell->down->taken) {
+			isFalling = false;
+			block->vel[1] = 1;
+			bool foundSpot = false;
+			if(curCell->down->left != nullptr) {
+				if(curCell->down->left->down != nullptr) {
+					if(!curCell->down->left->taken && curCell->down->left->down->id == DIRT) {
+						foundSpot = true;
+						striveL = true;
+						striveR = false;
+					}
+				}
+			}
+			if(curCell->down->right != nullptr && !foundSpot) {
+				if(curCell->down->right->down != nullptr) {
+					if(!curCell->down->right->taken && curCell->down->right->down->id == DIRT) {
+						striveL = false;
+						striveR = true;
+					}
+				}
+			}
+		}
+	} else {
+		isFalling = false;
+		block->vel[1] = 1;
+	}
+
+	// Default sand physics
+	if(isFalling) {
+		int i = 0;
+		Cell* tmp = curCell;
+		while(tmp->down != nullptr && i < block->vel[1]) {
+			if(tmp->down->taken) break;
+			tmp = tmp->down;
+			i++;
+		}
+
+		if(curCell == tmp) {
+			block->vel[1] = 1;
+		} else {
+			if(block->vel[1] < ACC) block->vel[1]++;
+
+			c.unoccupyCell(posy, posx);
+			if(posy + i >= c.g.max_rows) {
+				c.down->allocateBlock(*block, tmp->cellCol, tmp->cellRow);
+				block->doKill = true;
+				return;
+			} else {
+				block->celly = posy + i;
+				c.updateCellInfo(idx);
+				curCell = tmp;
+			}
+		}
+		return;
+	} else if(striveL) {
+		c.unoccupyCell(posy, posx);
+		// Bottom left corner
+		if(posy + 1 >= c.g.max_rows && posx - 1 < 0) {
+			c.down->left->allocateBlock(*block, curCell->down->left->cellCol, curCell->down->left->cellRow);
+			block->doKill = true;
+		}
+		// Bottom
+		else if(posy + 1 >= c.g.max_rows) {
+			c.down->allocateBlock(*block, curCell->down->left->cellCol, curCell->down->left->cellRow);
+			block->doKill = true;
+		} else if(posx - 1 < 0) {
+			c.left->allocateBlock(*block, curCell->down->left->cellCol, curCell->down->left->cellRow);
+			block->doKill = true;
+		} else {
+			// Left
+			block->celly++;
+			block->cellx--;
+			c.updateCellInfo(idx);
+			curCell = curCell->down->left;
+		}
+		return;
+	} else if(striveR) {
+		c.unoccupyCell(posy, posx);
+		// Bottom right corner
+		if(posy + 1 >= c.g.max_rows && posx + 1 >= c.g.max_cols) {
+			c.down->right->allocateBlock(*block, curCell->down->right->cellCol, curCell->down->right->cellRow);
+			block->doKill = true;
+		}
+		// Bottom
+		else if(posy + 1 >= c.g.max_rows) {
+			c.down->allocateBlock(*block, curCell->down->right->cellCol, curCell->down->right->cellRow);
+			block->doKill = true;
+		} else if(posx + 1 >= c.g.max_cols) {
+			c.right->allocateBlock(*block, curCell->down->right->cellCol, curCell->down->right->cellRow);
+			block->doKill = true;
+		} else {
+			// Right
+			block->celly++;
+			block->cellx++;
+			c.updateCellInfo(idx);
+			curCell = curCell->down->right;
+		}
+		return;
+	}
+
+	// Block environment reactions
+
+	// ------With grass
+	if(curCell->down != nullptr) {
+		if(curCell->down->taken && curCell->down->id == GRASS) {
+			// Both pass chunks
+			if(block->celly + 1 >= c.g.max_rows) {
+				int grassIdx = curCell->down->idx;
+				if(grassIdx >= 0 && grassIdx < c.down->blockCount) {
+					Particle* grassBlock = &c.down->blocks[grassIdx];
+					block->id = GRASS;
+					grassBlock->id = DIRT;
+					c.down->updateCellInfo(grassIdx);
+					c.updateCellInfo(idx);
+				} else {
+					c.down->unoccupyCell(curCell->down->cellRow, curCell->down->cellCol);
+				}
+			} else {
+				int grassIdx = curCell->down->idx;
+				if(grassIdx > 0 && grassIdx < c.blockCount) {
+					Particle* grassBlock = &c.blocks[grassIdx];
+					block->id = GRASS;
+					grassBlock->id = DIRT;
+					c.updateCellInfo(idx);
+					c.updateCellInfo(grassIdx);
+				} else {
+					c.unoccupyCell(curCell->down->cellRow, curCell->down->cellCol);
+				}
+			}
+		}
+	}
+}
+
+void updateGrass(int idx, Chunk& c) 
+{
+	c.updateCellInfo(idx);
+
+	Particle* block = &c.blocks[idx];
+	const short int ACC = block->Tacc;
+	// Position of current cell
+	int posx = block->cellx;
+	int posy = block->celly;
+
+	bool isFalling = true;
+	Cell* curCell = &c.g.cells[posy][posx];
+	if(curCell->down != nullptr) {
+		if(curCell->down->taken) {
+			isFalling = false;
+			block->vel[1] = 1;
+		}
+	} else {
+		isFalling = false;
+		block->vel[1] = 1;
+	}
+
+	// Default grass physics
+	if(isFalling) {
+		int i = 0;
+		Cell* tmp = curCell;
+		while(tmp->down != nullptr && i < block->vel[1]) {
+			if(tmp->down->taken) break;
+			tmp = tmp->down;
+			i++;
+		}
+
+		if(curCell == tmp) {
+			block->vel[1] = 1;
+		} else {
+			if(block->vel[1] < ACC) block->vel[1]++;
+
+			c.unoccupyCell(posy, posx);
+			if(posy + i >= c.g.max_rows) {
+				c.down->allocateBlock(*block, tmp->cellCol, tmp->cellRow);
+				block->doKill = true;
+				return;
+			} else {
+				posy += i;
+				block->celly = posy;
+				c.updateCellInfo(idx);
+				curCell = tmp;
+			}
+		}
+	}
+
+	// Block environment reactions
+
+	// ------With grass
+	if(curCell->up != nullptr) {
+		if(curCell->up->taken && curCell->up->id == GRASS) {
+			// Both pass chunks
+			block->id = DIRT;
+			c.updateCellInfo(idx);
+		}
+	}
+}
+
+void updateWood(int idx, Chunk& c)
 {
 	// Wood stays in place
 	// Position of current cell
-	updateCellInfo(idx);
+	c.updateCellInfo(idx);
 }
 
+void updateStone(int idx, Chunk& c)
+{
+	// Wood stays in place
+	// Position of current cell
+	c.updateCellInfo(idx);
+}
+
+/*
 void updateFire(int idx)
 {
 	// Update color

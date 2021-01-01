@@ -2,14 +2,18 @@
 #define BLOCKS_H
 
 #include <cmath>
+#include <string>
+#include <fstream>
 
-const int P_SIZE = 16;
-const int MAX_CHUNK_SIZE = 512;
+const int P_SIZE = 32;
+const int MAX_CHUNK_SIZE = 1600;
 
-enum {GRIDSIZEX=16, GRIDSIZEY=16};
-enum {AIR=-1, SAND=0, WATER, WOOD, FIRE, SMOKE, STEAM, SALT, METAL, NUM_PARTICLES};
-// Seconds for fire to spread
-const float SPREADTIME = 0.001f;
+enum {GRIDSIZEX=P_SIZE, GRIDSIZEY=P_SIZE};
+enum {AIR=-1, SAND=0, WATER, WOOD, FIRE, SMOKE, STEAM, SALT, METAL, STONE, DIRT, GRASS, NUM_PARTICLES};
+const std::string BLOCK_TYPES[NUM_PARTICLES] = {"SAND", "WATER", "WOOD", "FIRE", "SMOKE",
+												"STEAM", "SALT", "METAL", "STONE", "DIRT",
+												"GRASS"
+											   };
 
 inline float getDist(float a[2], float b[2])
 {
@@ -65,8 +69,6 @@ class Particle {
 
 	void initParticle(float x, float y, int id, int cellx, int celly, int idx);
 	void reinit();
-	void modify(int);
-	void swap(Particle&);
 	void operator=(Particle p);
 	void printInfo();
 };
@@ -83,6 +85,7 @@ class Cell {
 	int id;
 	int cellRow;
 	int cellCol;
+	int instances;
 
 	Cell* down;
 	Cell* up;
@@ -128,6 +131,10 @@ class Chunk {
 	bool allocateBlock(int, int, int);
 	bool allocateBlock(Particle&, int, int);
 	bool deallocateBlocks();
+	bool deallocateBlocks(float*);
+	bool deallocateBlock(int);
+	void unoccupyCell(int, int);
+	void refreshGrid();
 	void updateCellInfo(int idx);
 	bool within(float, float);
 	void updateBlocks();

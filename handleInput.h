@@ -42,6 +42,9 @@ inline bool keyboardInput(Game& game, SDL_Event e)
         case SDLK_5:
             game.select = STEAM;
             break;
+        case SDLK_6:
+            game.select = STONE;
+            break;
         case SDLK_m: 
             if(!ignore)
                 game.show_menu ^= 1;
@@ -92,6 +95,7 @@ inline void checkMouse(Game& game, SDL_Event e)
         // If shift down, display cell info
         if((e.button.button == SDL_BUTTON_LEFT) && game.shift_down) {
             float mouse[2] = {(float)game.mousex, (float)game.mousey};
+            game.displayCellInfo(mouse);
             /*
             float closest_dist = 999.99f;
             // Chosen cell
@@ -123,8 +127,6 @@ inline void checkMouse(Game& game, SDL_Event e)
         else if(e.button.button == SDL_BUTTON_LEFT || game.lbutton_down) {
             game.lbutton_down = true;
             game.rbutton_down = false;
-
-            game.chunks[game.curChunkY][game.curChunkX].allocateBlock(game.select, game.mousex, game.mousey);
             /*
             if(game.show_menu && game.mousey < 100) return;
             // Left click, generate particle at closest cell
@@ -155,7 +157,7 @@ inline void checkMouse(Game& game, SDL_Event e)
             }
             */
         }
-        else if((e.button.button == SDL_BUTTON_RIGHT || game.rbutton_down) && game.inbounds) {
+        else if(e.button.button == SDL_BUTTON_RIGHT || game.rbutton_down) {
             // Right click
             game.lbutton_down = false;
             game.rbutton_down = true;
