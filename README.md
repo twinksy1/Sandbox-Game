@@ -14,11 +14,12 @@ Once every dependency is installed, you can build on Linux with the makefile pro
 * Holding left click continually draws particles
 * Right click deletes particles falling within a certain radius of the mouse
 * Holding right click continually deletes particles
-* m button displays a menu where you can click to change between the particles being drawn
+* 'm' button displays a menu where you can click to change between the particles being drawn
 * Hold left or right arrow keys to traverse through the generated chunks
 ## DEBUGGING
 * Holding left shift key and left clicking on the screen displays the closest cell's info along with its chunk id
 * Info gets written to local logInfo.txt file
+* 'f1' displays grid-like system, white squares represent single particles and red squares represent entire chunks
 ## BETA 1
 ![Pic1](./gifs/sandbox-beta1.gif)
 ## BETA 2
