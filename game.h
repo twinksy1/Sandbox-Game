@@ -5,8 +5,8 @@
 #include <SDL2/SDL.h>
 #include "blocks.h"
 
-const int xres = 1600;
-const int yres = 1600;
+const int xres = (MAX_CHUNK_SIZE/2) + MAX_CHUNK_SIZE;
+const int yres = MAX_CHUNK_SIZE;
 const int CHUNKSX = 10;
 const int CHUNKSY = (yres / MAX_CHUNK_SIZE);
 const float CHUNK_REND_DIST = xres * 0.75;

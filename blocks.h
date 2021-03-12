@@ -6,7 +6,7 @@
 #include <fstream>
 
 const int P_SIZE = 32;
-const int MAX_CHUNK_SIZE = 1600;
+const int MAX_CHUNK_SIZE = 800;
 
 enum {GRIDSIZEX=P_SIZE, GRIDSIZEY=P_SIZE};
 enum {AIR=-1, SAND=0, WATER, WOOD, FIRE, SMOKE, STEAM, SALT, METAL, STONE, DIRT, GRASS, NUM_PARTICLES};
