@@ -18,6 +18,7 @@ Once every dependency is installed, you can build on Linux with the makefile pro
 * Hold left or right arrow keys to traverse through the generated chunks
 ## DEBUGGING
 * Holding left shift key and left clicking on the screen displays the closest cell's info along with its chunk id
+* Info gets written to local logInfo.txt file
 ## BETA 1
 ![Pic1](./gifs/sandbox-beta1.gif)
 ## BETA 2
