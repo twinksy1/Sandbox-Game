@@ -19,4 +19,5 @@ Once every dependency is installed, you can build on Linux with the makefile pro
 ## DEBUGGING
 * Holding left shift key and left clicking on the screen displays the closest cell's info along with its chunk id
 ## BETA 1
-![Pic1](./sandbox.gif)
+![Pic1](./gifs/sandbox-beta1.gif)
+![Pic2](./gifs/sandbox-beta2.gif)
