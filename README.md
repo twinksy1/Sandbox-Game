@@ -20,4 +20,5 @@ Once every dependency is installed, you can build on Linux with the makefile pro
 * Holding left shift key and left clicking on the screen displays the closest cell's info along with its chunk id
 ## BETA 1
 ![Pic1](./gifs/sandbox-beta1.gif)
+## BETA 2
 ![Pic2](./gifs/sandbox-beta2.gif)
