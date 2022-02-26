@@ -1,15 +1,13 @@
-#ifndef GAME_H
-#define GAME_H
+#pragma once
 
 #include <cmath>
-#include <SDL2/SDL.h>
+#include "SDL.h"
 #include "blocks.h"
+#include "display.h"
 
-const int xres = (MAX_CHUNK_SIZE/2) + MAX_CHUNK_SIZE;
-const int yres = MAX_CHUNK_SIZE;
-const int CHUNKSX = 10;
-const int CHUNKSY = (yres / MAX_CHUNK_SIZE);
-const float CHUNK_REND_DIST = xres * 0.75;
+const int xres = 640;
+const int yres = 480;
+
 
 class Camera {
 	public:
@@ -23,6 +21,7 @@ class Camera {
 
 // Game
 class Game {
+	std::string title = "Boxy Blocks";
 	public:
 	short int select;
 	float radius = 10.0f;
@@ -34,17 +33,23 @@ class Game {
 	bool show_menu = false;
 	bool pause = false;
 	bool inbounds = false;
-	Chunk chunks[CHUNKSY][CHUNKSX];
+	//Chunk chunks[CHUNKSY][CHUNKSX];
 	bool debugMode = true;
 	int rendChunks;
 	Camera cam;
+	Display window;
 	int curChunkX, curChunkY;
 	
 	Game();
 	~Game();
 
+	bool Init();
+
 	void pan(int);
 	void displayCellInfo(float*);
+	bool HandleEvents();
+	bool KeyboardEvent(SDL_Event& e);
+	void MouseEvent(SDL_Event& e);
+	void Render();
 };
 
-#endif

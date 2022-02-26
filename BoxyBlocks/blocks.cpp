@@ -1,7 +1,14 @@
 #include "blocks.h"
 
-#include <cstdio>
+void Block::AddVelocityX(double incDec) {
+	velocity.first += incDec;
+}
 
+void Block::AddVelocityY(double incDec) {
+	velocity.second += incDec;
+}
+
+/*
 void updateWater(int, Chunk&);
 void updateSand(int, Chunk&);
 void updateWood(int, Chunk&);
@@ -294,7 +301,7 @@ bool Chunk::deallocateBlocks(float* mousePos)
 			}
 		}
 	}
-	deallocateBlocks();
+	return deallocateBlocks();
 }
 bool Chunk::deallocateBlocks()
 {
@@ -341,6 +348,7 @@ bool Chunk::deallocateBlocks()
 		return true;
 		
 	}
+	return false;
 }
 bool Chunk::deallocateBlock(int idx)
 {
@@ -1587,5 +1595,7 @@ void updateMetal(int idx)
 }
 
 */
+
+
 
 // End ********************

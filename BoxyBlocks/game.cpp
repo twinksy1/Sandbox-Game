@@ -1,88 +1,117 @@
-#ifndef HANDLEINPUT_H
-#define HANDLEINPUT_H
-
-#include <SDL2/SDL.h>
 #include "game.h"
 
-inline bool keyboardInput(Game& game, SDL_Event e)
+Camera::Camera()
 {
+    focusx = (float)xres / 2.0f;
+    focusy = (float)yres / 2.0f;
+}
+
+Game::Game()
+{
+
+}
+Game::~Game()
+{
+}
+
+bool Game::Init() {
+    return window.Init(xres, yres, title);
+}
+
+void Game::Render() {
+    window.PreRender();
+
+    window.PostRender();
+}
+
+void Game::displayCellInfo(float* pos)
+{
+
+}
+
+void Game::pan(int dir)
+{
+    if(dir == -1) {
+
+    } else {
+
+    }
+}
+
+bool Game::HandleEvents()
+{
+    SDL_Event e;
+    // Handles all events in queue
+    while (SDL_PollEvent(&e) != 0) {
+        if (e.type == SDL_QUIT)
+            return true;
+        else if (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP)
+            if (KeyboardEvent(e))
+                return true;
+        // Always check mouse
+        MouseEvent(e);
+    }
+
+    return false;
+}
+
+bool Game::KeyboardEvent(SDL_Event& e) {
     static bool ignore = false;
     // Key up
-    if(e.type == SDL_KEYUP) {
-        switch(e.key.keysym.sym) {
-            case SDLK_LSHIFT:
-                game.shift_down = false;
-                //printf("Shift key released\n");
-                break;
+    if (e.type == SDL_KEYUP) {
+        switch (e.key.keysym.sym) {
+        case SDLK_LSHIFT:
+            shift_down = false;
+            //printf("Shift key released\n");
+            break;
         }
     }
     // Handle keyboard input
-    switch(e.key.keysym.sym) {
-        case SDLK_a:
-            game.pan(1);
-            break;
-        case SDLK_d:
-            game.pan(-1);
-            break;
-        case SDLK_0:
-            game.select = SAND;
-            break;
-        case SDLK_1:
-            game.select = WATER;
-            break;
-        case SDLK_2:
-            game.select = WOOD;
-            break;
-        case SDLK_3:
-            game.select = FIRE;
-            break;
-        case SDLK_4:
-            game.select = SMOKE;
-            break;
-        case SDLK_5:
-            game.select = STEAM;
-            break;
-        case SDLK_6:
-            game.select = STONE;
-            break;
-        case SDLK_m: 
-            if(!ignore)
-                game.show_menu ^= 1;
-            ignore ^= 1;
-            break;
-        case SDLK_p: 
-            if(!ignore)
-                game.pause ^= 1;
-            ignore ^= 1;
-            break;
-        case SDLK_F1: 
-            if(!ignore)
-                game.debugMode ^= 1;
-            ignore ^= 1;
-            break;
-        case SDLK_f: 
-            if(!ignore)
-                game.flush ^= 1;
-            ignore ^= 1;
-            break;
-        case SDLK_LSHIFT:
-            if(!ignore)
-                game.shift_down = true;
-            ignore ^= 1;
-            break;
-        case SDLK_ESCAPE:
-            return true;
-            break;
+    switch (e.key.keysym.sym) {
+    case SDLK_a:
+        pan(1);
+        break;
+    case SDLK_d:
+        pan(-1);
+        break;
+    case SDLK_m:
+        if (!ignore)
+            show_menu ^= 1;
+        ignore ^= 1;
+        break;
+    case SDLK_p:
+        if (!ignore)
+            pause ^= 1;
+        ignore ^= 1;
+        break;
+    case SDLK_F1:
+        if (!ignore)
+            debugMode ^= 1;
+        ignore ^= 1;
+        break;
+    case SDLK_f:
+        if (!ignore)
+            flush ^= 1;
+        ignore ^= 1;
+        break;
+    case SDLK_LSHIFT:
+        if (!ignore)
+            shift_down = true;
+        ignore ^= 1;
+        break;
+    case SDLK_ESCAPE:
+        return true;
+        break;
     }
     return false;
 }
-inline void checkMouse(Game& game, SDL_Event e)
-{
-    if(e.type == SDL_MOUSEMOTION) {
+
+void Game::MouseEvent(SDL_Event& e) {
+    if (e.type == SDL_MOUSEMOTION) {
         // Mouse moved
-        SDL_GetMouseState(&game.mousex, &game.mousey);
+        SDL_GetMouseState(&mousex, &mousey);
         /*
-        if(game.mousex >=0 && game.mousex < game.xres && 
+        if(game.mousex >=0 && game.mousex < game.xres &&
                 game.mousey >= 0 && game.mousey < game.yres)
             game.inbounds = true;
         else game.inbounds = false;
@@ -90,12 +119,12 @@ inline void checkMouse(Game& game, SDL_Event e)
         */
     }
 
-    if(e.type == SDL_MOUSEBUTTONDOWN) {
+    if (e.type == SDL_MOUSEBUTTONDOWN) {
         // Mouse click
         // If shift down, display cell info
-        if((e.button.button == SDL_BUTTON_LEFT) && game.shift_down) {
-            float mouse[2] = {(float)game.mousex, (float)game.mousey};
-            game.displayCellInfo(mouse);
+        if ((e.button.button == SDL_BUTTON_LEFT) && shift_down) {
+            float mouse[2] = { (float)mousex, (float)mousey };
+            displayCellInfo(mouse);
             /*
             float closest_dist = 999.99f;
             // Chosen cell
@@ -124,9 +153,9 @@ inline void checkMouse(Game& game, SDL_Event e)
         }
 
         // Else generate a particle
-        else if(e.button.button == SDL_BUTTON_LEFT || game.lbutton_down) {
-            game.lbutton_down = true;
-            game.rbutton_down = false;
+        else if (e.button.button == SDL_BUTTON_LEFT || lbutton_down) {
+            lbutton_down = true;
+            rbutton_down = false;
             /*
             if(game.show_menu && game.mousey < 100) return;
             // Left click, generate particle at closest cell
@@ -138,7 +167,7 @@ inline void checkMouse(Game& game, SDL_Event e)
 
             for(int i=0; i<g.max_rows; i++) {
                 for(int j=0; j<g.max_cols; j++) {
-                    float cell_pos[2] = {(float)g.cells[i][j].x, 
+                    float cell_pos[2] = {(float)g.cells[i][j].x,
                         (float)g.cells[i][j].y};
                     float dist = getLength(mouse, cell_pos);
                     if(dist < closest_dist && !g.cells[i][j].taken) {
@@ -148,7 +177,7 @@ inline void checkMouse(Game& game, SDL_Event e)
                     }
                 }
             }
-            
+
             // Generate a new particle
             if(closest_dist < game.radius) {
                 allocateParticle(game.select,
@@ -157,10 +186,10 @@ inline void checkMouse(Game& game, SDL_Event e)
             }
             */
         }
-        else if(e.button.button == SDL_BUTTON_RIGHT || game.rbutton_down) {
+        else if (e.button.button == SDL_BUTTON_RIGHT || rbutton_down) {
             // Right click
-            game.lbutton_down = false;
-            game.rbutton_down = true;
+            lbutton_down = false;
+            rbutton_down = true;
             /*
             float mouse[2] = {(float)game.mousex, (float)game.mousey};
             for(int i=0; i<game.pcount; i++) {
@@ -175,11 +204,9 @@ inline void checkMouse(Game& game, SDL_Event e)
         }
     }
 
-    if(e.type == SDL_MOUSEBUTTONUP) {
+    if (e.type == SDL_MOUSEBUTTONUP) {
         // Button release
-        game.lbutton_down = false;
-        game.rbutton_down = false;
+        lbutton_down = false;
+        rbutton_down = false;
     }
 }
-
-#endif
