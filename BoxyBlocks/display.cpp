@@ -1,9 +1,13 @@
 #include "display.h"
+#include <Windows.h>
+#include <WinUser.h>
+#include <locale>
+#include <codecvt>
 
 Display::Display()
 {
     window = NULL;
-    screen_surface = NULL;
+    screenSurface = NULL;
     rend = NULL;
     /*for(int i=0; i<NUM_PARTICLES; i++) {
         message[i] = NULL;
@@ -11,14 +15,15 @@ Display::Display()
     }*/
     //Initialize PNG loading
     int imgFlags = IMG_INIT_PNG;
-    if( !( IMG_Init( imgFlags ) & imgFlags ) )
-    {
-        printf( "SDL_image could not initialize! SDL_image Error: %s\n", IMG_GetError() );
+    if( !( IMG_Init( imgFlags ) & imgFlags ) ) {
+        std::string error = "SDL_image Error: " + std::string(IMG_GetError());
+        std::wstring errorMessage(error.begin(), error.end());
+        MessageBox(NULL, (LPCWSTR)errorMessage.c_str(), (LPCWSTR)L"SDL IMAGE COULD NOT INITIALIZE!", MB_OK);
     }
 }
 Display::~Display()
 {
-    SDL_FreeSurface(screen_surface);
+    SDL_FreeSurface(screenSurface);
     /*for(int i=0; i<NUM_PARTICLES; i++) {
         if(blockTextures[i] != NULL)
             SDL_DestroyTexture(blockTextures[i]);
@@ -26,79 +31,156 @@ Display::~Display()
     }*/
     SDL_DestroyWindow(window);
     SDL_Quit();
-    printf("\nSuccessful exit\n");
 }
 int Display::Init(int xres, int yres, std::string title)
 {
     if(SDL_Init(SDL_INIT_VIDEO) == -1) {
-        printf("ERROR SDL_INIT: %s\n", SDL_GetError());
+        std::string error = "ERROR SDL_INIT: " + std::string(SDL_GetError());
+        std::wstring errorMessage(error.begin(), error.end());
+        MessageBox(NULL, (LPCWSTR)errorMessage.c_str(), (LPCWSTR)"SDL COULD NOT INITIALIZE!", MB_OK);
         return 1;
     }
 
     window = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
             xres, yres, SDL_WINDOW_SHOWN);
     if(window == NULL) {
-        printf("ERROR DISPLAYING WINDOW: %s\n", SDL_GetError());
+        std::string error = "ERROR DISPLAYING WINDOW: " + std::string(SDL_GetError());
+        std::wstring errorMessage(error.begin(), error.end());
+        MessageBox(NULL, (LPCWSTR)errorMessage.c_str(), (LPCWSTR)"SDL WINDOW COULD NOT INITIALIZE!", MB_OK);
         return 1;
     }
 
     rend = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if(rend == NULL) {
-        printf("ERROR RENDERER: %s\n", SDL_GetError());
+        std::string error = "ERROR RENDERER: " + std::string(SDL_GetError());
+        std::wstring errorMessage(error.begin(), error.end());
+        MessageBox(NULL, (LPCWSTR)errorMessage.c_str(), (LPCWSTR)"SDL RENDERER COULD NOT INITIALIZE!", MB_OK);
         return 1;
     }
     LoadTextures();
-    TTF_Init();
+    if (TTF_Init()) {
+        std::string error = "TTF ERROR: " + std::string(TTF_GetError());
+        std::wstring errorMessage(error.begin(), error.end());
+        MessageBox(NULL, (LPCWSTR)errorMessage.c_str(), (LPCWSTR)"SDL TTF COULD NOT INITIALIZE!", MB_OK);
+        return 1;
+    }
     
     return 0;
 }
-void Display::SetColor(int r, int g, int b)
-{
+
+std::wstring Display::ExePath() {
+    TCHAR buffer[MAX_PATH] = { 0 };
+    GetModuleFileName(NULL, buffer, MAX_PATH);
+    std::wstring::size_type pos = std::wstring(buffer).find_last_of(L"\\/");
+    return std::wstring(buffer).substr(0, pos);
+}
+
+void Display::SetColor(int r, int g, int b) {
+    currentColor = 0;
+    currentColor += r;
+    currentColor << 8;
+    currentColor += g;
+    currentColor << 8;
+    currentColor += b;
     SDL_SetRenderDrawColor(rend, r, g, b, 255);
 }
-void Display::PreRender()
-{
-    // Rendering function
-    //screen_surface = SDL_GetWindowSurface(window);
-    //SDL_FillRect(screen_surface, NULL, SDL_MapRGB(screen_surface->format, WHITE[0], WHITE[1], WHITE[2]));
-    //SDL_UpdateWindowSurface(window);
 
+void Display::PreRender() {
     // Clear screen
     SetColor(0, 0, 0);
     SDL_RenderClear(rend);
 }
-void Display::PostRender()
-{
+
+void Display::PostRender() {
     // Show renderer
     SDL_RenderPresent(rend);
 }
+
 // Drawing functions
-void Display::DrawLine(int x1, int y1, int x2, int y2)
-{
+void Display::DrawLine(int x1, int y1, int x2, int y2) {
     SDL_RenderDrawLine(rend, x1, y1, x2, y2);
 }
-void Display::DrawPoint(int x, int y)
-{
+
+void Display::DrawPoint(int x, int y) {
     SDL_RenderDrawPoint(rend, x, y);
 }
-void Display::DrawRect(int x, int y, int w, int h)
-{
+
+SDL_FRect Display::CreateRectF(double x, double y, double w, double h) {
+    return CreateRectF((float)x, (float)y, (float)w, (float)h);
+}
+
+SDL_Rect Display::CreateRect(int x, int y, int w, int h) {
     SDL_Rect rect;
     rect.x = x;
     rect.y = y;
     rect.w = w;
     rect.h = h;
+    return rect;
+}
+
+SDL_Rect Display::CreateRect(float x, float y, float w, float h) {
+    SDL_Rect rect;
+    rect.x = x;
+    rect.y = y;
+    rect.w = w;
+    rect.h = h;
+    return rect;
+}
+
+SDL_FRect Display::CreateRectF(float x, float y, float w, float h) {
+    SDL_FRect rect;
+    rect.x = x;
+    rect.y = y;
+    rect.w = w;
+    rect.h = h;
+    return rect;
+}
+
+void Display::DrawRect(int x, int y, int w, int h) {
+    SDL_Rect rect = CreateRect(x, y, w, h);
     SDL_RenderDrawRect(rend, &rect);
 }
-void Display::FillRect(int x, int y, int w, int h)
-{
-    SDL_Rect rect;
-    rect.x = x;
-    rect.y = y;
-    rect.w = w;
-    rect.h = h;
+
+void Display::DrawRect(float x, float y, float w, float h) {
+    SDL_FRect rect = CreateRectF(x, y, w, h);
+    SDL_RenderDrawRectF(rend, &rect);
+}
+
+void Display::DrawRect(double x, double y, double w, double h) {
+    DrawRect((float)x, (float)y, (float)w, (float)h);
+}
+
+void Display::DrawRect(std::pair<float, float> pos, std::pair<float, float> dimmensions) {
+    DrawRect(pos.first, pos.second, dimmensions.first, dimmensions.second);
+}
+
+void Display::DrawRect(std::pair<double, double> pos, std::pair<double, double> dimmensions) {
+    DrawRect(pos.first, pos.second, dimmensions.first, dimmensions.second);
+}
+
+void Display::FillRect(float x, float y, float w, float h) {
+    SDL_FRect rect = CreateRectF(x, y, w, h);
+    SDL_RenderFillRectF(rend, &rect);
+    //SDL_FillRect(screenSurface, &rect, currentColor);
+}
+
+void Display::FillRect(double x, double y, double w, double h) {
+    FillRect((float)x, (float)y, (float)w, (float)h);
+}
+
+void Display::FillRect(int x, int y, int w, int h) {
+    SDL_Rect rect = CreateRect(x, y, w, h);
     SDL_RenderFillRect(rend, &rect);
 }
+
+void Display::FillRect(std::pair<float, float> pos, std::pair<float, float> dimmensions) {
+    FillRect(pos.first, pos.second, dimmensions.first, dimmensions.second);
+}
+
+void Display::FillRect(std::pair<double, double> pos, std::pair<double, double> dimmensions) {
+    FillRect(pos.first, pos.second, dimmensions.first, dimmensions.second);
+}
+
 void Display::LoadTextures()
 {
     //for(int i=0; i<NUM_PARTICLES; i++) {
@@ -184,24 +266,44 @@ void Display::DrawBackground(int x, int y, int w, int h)
     textureRect.h = h;
     //SDL_RenderCopy(rend, bg, NULL, &textureRect);
 }
-void Display::DrawText(int x, int y, int w, int h, const char* mes, int size, int i)
-{
-    //int extra = strlen(mes);
-    //if(message[i] == NULL) {
-    //    TTF_Font* Sans = TTF_OpenFont("./Roboto-Black.ttf", size+extra);
-    //    if(Sans == NULL) {
-    //        printf("ERROR FONT: %s\n", SDL_GetError());
-    //        return;
-    //    }
-    //    SDL_Color BLACK = {0,0,0};
-    //    SDL_Surface* surface = TTF_RenderText_Solid(Sans, mes, BLACK);
-    //    message[i] = SDL_CreateTextureFromSurface(rend, surface);
-    //    SDL_FreeSurface(surface);
-    //}
-    //SDL_Rect MessageRect;
-    //MessageRect.x = x+extra;
-    //MessageRect.y = y+extra;
-    //MessageRect.w = w+extra;
-    //MessageRect.h = h;
-    //SDL_RenderCopy(rend, message[i], NULL, &MessageRect);
+void Display::DrawScreenText(int x, int y, int w, int h, TTF_Font* font, std::string text, SDL_Color color) {
+    try {
+        if (font == NULL) return;
+        SDL_Surface* surfaceMessage = TTF_RenderText_Solid(font, text.c_str(), color);
+        SDL_Texture* messageTexture = SDL_CreateTextureFromSurface(rend, surfaceMessage);
+        SDL_Rect messageRect = CreateRect(x, y, w, h);
+        SDL_RenderCopy(rend, messageTexture, NULL, &messageRect);
+        SDL_FreeSurface(surfaceMessage);
+        SDL_DestroyTexture(messageTexture);
+    }
+    catch (...) {
+        return;
+    }
+}
+
+void Display::DrawScreenText(float x, float y, float w, float h, TTF_Font* font, std::string text, SDL_Color color) {
+    try {
+        if (font == NULL) return;
+        SDL_Surface* surfaceMessage = TTF_RenderText_Solid(font, text.c_str(), color);
+        SDL_Texture* messageTexture = SDL_CreateTextureFromSurface(rend, surfaceMessage);
+        SDL_FRect messageRect = CreateRectF(x, y, w, h);
+        SDL_RenderCopyF(rend, messageTexture, NULL, &messageRect);
+        SDL_FreeSurface(surfaceMessage);
+        SDL_DestroyTexture(messageTexture);
+    }
+    catch (...) {
+        return;
+    }
+}
+
+void Display::DrawScreenText(double x, double y, double w, double h, TTF_Font* font, std::string text, SDL_Color color) {
+    DrawScreenText((float)x, (float)y, (float)w, (float)h, font, text, color);
+}
+
+void Display::DrawScreenText(std::pair<float, float> pos, std::pair<float, float> dimmensions, TTF_Font* font, std::string text, SDL_Color color) {
+    DrawScreenText(pos.first, pos.second, dimmensions.first, dimmensions.second, font, text, color);
+}
+
+void Display::DrawScreenText(std::pair<double, double> pos, std::pair<double, double> dimmensions, TTF_Font* font, std::string text, SDL_Color color) {
+    DrawScreenText(pos.first, pos.second, dimmensions.first, dimmensions.second, font, text, color);
 }

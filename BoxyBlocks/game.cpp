@@ -1,4 +1,7 @@
 #include "game.h"
+#include <Windows.h>
+#include <WinUser.h>
+#include <cstdlib>
 
 Camera::Camera()
 {
@@ -6,20 +9,51 @@ Camera::Camera()
     focusy = (float)yres / 2.0f;
 }
 
-Game::Game()
-{
-
+Game::Game() {
+    
 }
-Game::~Game()
-{
+Game::~Game() {
+    for (auto font : fontMap) {
+        TTF_CloseFont(font.second);
+    }
 }
 
 bool Game::Init() {
-    return window.Init(xres, yres, title);
+    if (window.Init(xres, yres, title)) {
+        error = Errors::SDL_WINDOW;
+        return -1;
+    }
+
+    std::string fontPath = std::string(std::getenv("FONTS")) + "/Roboto-Black.ttf";
+    TTF_Font* font = TTF_OpenFont(fontPath.c_str(), 24);
+    if (font == NULL) {
+        std::string ttfError = std::string(TTF_GetError());
+        std::wstring errorMessage = L"Font Load Error: " + std::wstring(ttfError.begin(), ttfError.end());
+        MessageBox(NULL, (LPCWSTR)errorMessage.c_str(), (LPCWSTR)L"SDL TTF", MB_OK);
+        error = Errors::FONT_LOAD;
+        return -1;
+    }
+
+    fontMap.emplace("Roboto-Black-24", font);
+
+    entities.push_back(Entity(std::pair<double, double>(0.0, 0.0), std::pair<double, double>(20.0, 20.0), std::pair<double, double>(1.0, 1.0)));
+    entities.push_back(Entity(std::pair<double, double>(100.0, 100.0), std::pair<double, double>(20.0, 20.0), std::pair<double, double>(0.0, 0.0)));
+    entities.push_back(Entity(std::pair<double, double>(80.0, 300.0), std::pair<double, double>(20.0, 20.0), std::pair<double, double>(0.0, 0.0)));
+    return 0;
 }
 
 void Game::Render() {
     window.PreRender();
+
+#ifdef _DEBUG
+    std::string mouseCoords = std::to_string(mousex) + ", " + std::to_string(mousey);
+    window.DrawScreenText(mousex, mousey, mouseCoords.length() * 5, mouseCoords.length() * 5, fontMap["Roboto-Black-24"], mouseCoords);
+#endif // DEBUG
+
+    window.SetColor(255, 255, 0);
+    for (auto& entity : entities) {
+        window.FillRect(entity.GetPos(), entity.GetDimmensions());
+    }
 
     window.PostRender();
 }
@@ -36,6 +70,39 @@ void Game::pan(int dir)
     } else {
 
     }
+}
+
+void Game::CheckForCollisions() {
+    for (int i = 0; i < entities.size(); i++) {
+        for (int j = 0; j < entities.size(); j++) {
+            if (j == i) { continue; }
+            else {
+                entities[i].CheckCollision(&entities[j]);
+            }
+        }
+    }
+}
+
+void Game::MoveEntities() {
+    if (gameFreeze) {
+        return;
+    }
+    for (auto& entity : entities) {
+        entity.Move();
+    }
+}
+
+bool Game::Run() {
+    frameStart = SDL_GetTicks();
+    Render();
+    MoveEntities();
+    CheckForCollisions();
+    bool eventReturn = HandleEvents();
+    frameTime = SDL_GetTicks() - frameStart;
+    if (frameTime < 10/targetFrameRate*10) {
+        SDL_Delay(10/targetFrameRate*10 - frameTime);
+    }
+    return !eventReturn;
 }
 
 bool Game::HandleEvents()
@@ -110,97 +177,20 @@ void Game::MouseEvent(SDL_Event& e) {
     if (e.type == SDL_MOUSEMOTION) {
         // Mouse moved
         SDL_GetMouseState(&mousex, &mousey);
-        /*
-        if(game.mousex >=0 && game.mousex < game.xres &&
-                game.mousey >= 0 && game.mousey < game.yres)
-            game.inbounds = true;
-        else game.inbounds = false;
-        //printf("Mouse: %i, %i\n", mousex, mousey);
-        */
     }
 
     if (e.type == SDL_MOUSEBUTTONDOWN) {
-        // Mouse click
-        // If shift down, display cell info
-        if ((e.button.button == SDL_BUTTON_LEFT) && shift_down) {
-            float mouse[2] = { (float)mousex, (float)mousey };
-            displayCellInfo(mouse);
-            /*
-            float closest_dist = 999.99f;
-            // Chosen cell
-            int cellx, celly;
 
-            for(int i=0; i<g.max_rows; i++) {
-                for(int j=0; j<g.max_cols; j++) {
-                    float cell_pos[2] = {(float)g.cells[i][j].x,
-                        (float)g.cells[i][j].y};
-                    float dist = getLength(mouse, cell_pos);
-                    if(dist < closest_dist) {
-                        closest_dist = dist;
-                        cellx = j;
-                        celly = i;
-                    }
-                }
-            }
-
-            // Print info for this cell
-            printf("\n\nCell [%i][%i]\n============\n", celly, cellx);
-            printf("ID: %i, Particle IDX: %i, Taken: %i\n",
-                    g.cells[celly][cellx].id, g.cells[celly][cellx].idx,
-                    g.cells[celly][cellx].id);
-            game.p[g.cells[celly][cellx].idx].printInfo();
-            */
-        }
-
-        // Else generate a particle
-        else if (e.button.button == SDL_BUTTON_LEFT || lbutton_down) {
+        if (e.button.button == SDL_BUTTON_LEFT || lbutton_down) {
             lbutton_down = true;
             rbutton_down = false;
-            /*
-            if(game.show_menu && game.mousey < 100) return;
-            // Left click, generate particle at closest cell
-            float mouse[2] = {(float)game.mousex, (float)game.mousey};
-            float closest_dist = 999.99f;
-            // Index of cell
-            int celly_idx;
-            int cellx_idx;
 
-            for(int i=0; i<g.max_rows; i++) {
-                for(int j=0; j<g.max_cols; j++) {
-                    float cell_pos[2] = {(float)g.cells[i][j].x,
-                        (float)g.cells[i][j].y};
-                    float dist = getLength(mouse, cell_pos);
-                    if(dist < closest_dist && !g.cells[i][j].taken) {
-                        closest_dist = dist;
-                        celly_idx = i;
-                        cellx_idx = j;
-                    }
-                }
-            }
-
-            // Generate a new particle
-            if(closest_dist < game.radius) {
-                allocateParticle(game.select,
-                            g.cells[celly_idx][cellx_idx].x,
-                        g.cells[celly_idx][cellx_idx].y,	cellx_idx, celly_idx);
-            }
-            */
         }
         else if (e.button.button == SDL_BUTTON_RIGHT || rbutton_down) {
             // Right click
             lbutton_down = false;
             rbutton_down = true;
-            /*
-            float mouse[2] = {(float)game.mousex, (float)game.mousey};
-            for(int i=0; i<game.pcount; i++) {
-                float pos[2] = {game.p[i].x, game.p[i].y};
-                float dist = getLength(pos, mouse);
-                if(dist < game.radius)
-                    game.p[i].doKill = true;
-            }
 
-            deallocateParticles();
-            */
         }
     }
 
