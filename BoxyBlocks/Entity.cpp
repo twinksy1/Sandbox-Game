@@ -1,6 +1,24 @@
 #include "Entity.h"
 #include <functional>
 
+Entity::Entity(std::pair<double, double> pos_p, Square collisionBox_p) : pos(pos_p), collisionBox(collisionBox_p) {
+//	pos = std::pair<double, double>(collisionBox.GetUpperLeftPoint().x, collisionBox.GetUpperLeftPoint().y);
+	collisionBox.Translate(pos);
+}
+
+Entity::Entity(std::pair<double, double> pos_p, Square collisionBox_p, std::pair<double, double> velocity_p) : pos(pos_p), velocity(velocity_p), collisionBox(collisionBox_p) {
+//	pos = std::pair<double, double>(collisionBox.GetUpperLeftPoint().x, collisionBox.GetUpperLeftPoint().y);
+	collisionBox.Translate(pos);
+}
+
+Entity::Entity(const Entity& src) {
+	velocity = src.velocity;
+	acceleration = src.acceleration;
+	collisionBox = src.collisionBox;
+	pos = src.pos;
+	grounded = src.grounded;
+}
+
 void Entity::AddVelocityX(double incDec) {
 	velocity.first += incDec;
 }
@@ -53,79 +71,111 @@ void Entity::DeaccelerateY() {
 	}
 }
 
+void Entity::MoveTo(double x, double y) {
+	pos.first = x;
+	pos.second = y;
+}
+
+void Entity::MoveTo(std::pair<double, double> newPos) {
+	pos = newPos;
+}
+
 void Entity::CheckCollision(Entity* collider) {
-	// Everything in this game is a square. So basic square collision should work.
-	std::vector<std::function<std::pair<double, double>()>>  coordFunctions;
-	coordFunctions.push_back([this]() { return GetUpperLeftCoord(); });
-	coordFunctions.push_back([this]() { return GetUpperRightCoord(); });
-	coordFunctions.push_back([this]() { return GetLowerLeftCoord(); });
-	coordFunctions.push_back([this]() { return GetLowerRightCoord(); });
+	collisionBox.CheckCollision(&(collider->GetCollisionBox()));
+	if (collisionBox.colliding) {
+		OnCollision(collider);
+		return;
+	}
 
-	for (auto function : coordFunctions) {
-		std::pair<double, double> corner = function();
-		if (corner.first >= collider->GetUpperLeftCoord().first && corner.first <= collider->GetUpperRightCoord().first && corner.second >= collider->GetUpperLeftCoord().second && corner.second <= collider->GetLowerRightCoord().second) {
-			double bottomSideDiff = abs(GetLowerLeftCoord().second - collider->GetUpperLeftCoord().second);
-			double topSideDiff = abs(GetUpperLeftCoord().second - collider->GetLowerLeftCoord().second);
-			double leftSideDiff = abs(GetUpperLeftCoord().first - collider->GetUpperRightCoord().first);
-			double rightSideDiff = abs(GetUpperRightCoord().first - collider->GetUpperLeftCoord().first);
-			double min = std::min(std::min(bottomSideDiff, topSideDiff), std::min(leftSideDiff, rightSideDiff));
-
-			CollisionDirections collisionLocation = CollisionDirections::LEFT;
-
-			if (bottomSideDiff == min) {
-				collisionLocation = CollisionDirections::DOWN;
-				pos.second -= (bottomSideDiff + 0.1);
-			}
-			if (topSideDiff == min) {
-				collisionLocation = CollisionDirections::UP;
-				pos.second += (topSideDiff + 0.1);
-			}
-			if(rightSideDiff == min) {
-				collisionLocation = CollisionDirections::RIGHT;
-				pos.first -= (rightSideDiff + 0.1);
-			}
-			if(leftSideDiff == min) {
-				pos.first += (leftSideDiff + 0.1);
-			}
-
-			OnCollision(collider, collisionLocation);
-			break;
+	if (velocity.first != 0.0 || velocity.second != 0.0) {
+		Square stretchedCollisionBox = Square(collisionBox);
+		stretchedCollisionBox.IncDecSquarePoints(velocity);
+		stretchedCollisionBox.CheckCollision(&(collider->GetCollisionBox()));
+		if (stretchedCollisionBox.colliding) {
+			collisionBox.collisionInfo = stretchedCollisionBox.collisionInfo;
+			OnCollision(collider);
+		}
+		else {
+			Move();
 		}
 	}
 }
 
-void Entity::OnCollision(Entity* collider, CollisionDirections collisionLocation) {
-	//MakeIdle();
-	CollisionDirections colliderCollisionSide = CollisionDirections::LEFT;
-	switch (collisionLocation) {
-	case CollisionDirections::LEFT:
-		colliderCollisionSide = CollisionDirections::RIGHT;
-		velocity.first = 0.0;
-		break;
-	case CollisionDirections::UP:
-		colliderCollisionSide = CollisionDirections::DOWN;
+SquareSides Entity::GetColliderOrientation(Entity* collider) {
+	Line line = Line(pos.first, pos.second, collider->GetPos().first, collider->GetPos().second);
+	
+	if (abs(line.rise) < (line.run)) {
+		return line.rise < 0.0 ? SquareSides::BOTTOM : SquareSides::TOP;
+	}
+	else {
+		return line.run < 0.0 ? SquareSides::LEFT : SquareSides::RIGHT;
+	}
+}
+
+void Entity::OnCollision(Entity* collider) {
+	auto& collidingLines = collisionBox.collisionInfo.collidingLines;
+	auto& pois = collisionBox.collisionInfo.pointsOfIntersection;
+	SquareSides colliderOrientation = GetColliderOrientation(collider);
+	switch (colliderOrientation) {
+	case SquareSides::BOTTOM:
 		velocity.second = 0.0;
-		break;
-	case CollisionDirections::DOWN:
-		colliderCollisionSide = CollisionDirections::UP;
-		velocity.second = 0.0;
+		pos.second = collider->GetPos().second - 0.1;
 		grounded = true;
 		break;
-	case CollisionDirections::RIGHT:
-		colliderCollisionSide = CollisionDirections::LEFT;
+	case SquareSides::TOP:
+		velocity.second = 0.0;
+		pos.second = collider->GetPos().second + collider->GetDimmensions().second + 0.1;
+		break;
+	case SquareSides::LEFT:
 		velocity.first = 0.0;
+		pos.first = collider->GetPos().first + collider->GetDimmensions().first + 0.1;
+		break;
+	case SquareSides::RIGHT:
+		velocity.first = 0.0;
+		pos.first = collider->GetPos().first - 0.1;
 		break;
 	}
-	if (collider != NULL) {
-		//collider->MakeIdle();
-		OnCollision(NULL, colliderCollisionSide);
-	}
+	/*for (int i = 0; i < collidingLines.size(); i++) {
+		switch ((SquareSides)collidingLines[i]) {
+		case SquareSides::BOTTOM:
+			if (IsMoving()) {
+				
+			}
+			velocity.second = 0.0;
+			pos.second -= 0.1;
+			grounded = true;
+			break;
+		case SquareSides::TOP:
+			if (collider != NULL) {
+
+			}
+			pos.second += 0.1;
+			break;
+		case SquareSides::LEFT:
+			if (collider != NULL) {
+
+			}
+			velocity.first = 0.0;
+			pos.first += 0.1;
+			break;
+		case SquareSides::RIGHT:
+			if (collider != NULL) {
+
+			}
+			velocity.first = 0.0;
+			pos.first -= 0.1;
+			break;
+		}
+	}*/
+	collisionBox.Translate(pos);
 }
 
 void Entity::Move() {
 	if (IsIdle()) {
 		return;
 	}
+	OnMove();
 	pos.first += velocity.first;
 	pos.second += velocity.second;
+	collisionBox.Translate(pos);
 }

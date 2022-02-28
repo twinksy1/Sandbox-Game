@@ -30,7 +30,7 @@ enum class Errors {
 class Game {
 	std::string title = "Boxy Blocks";
 	std::map<std::string, TTF_Font*> fontMap;
-	std::vector<Entity> entities;
+	std::vector<Entity> entities = std::vector<Entity>();
 	bool gameFreeze = false;
 
 	const Uint32 targetFrameRate = 60;
@@ -70,6 +70,12 @@ public:
 	void Render();
 	void MoveEntities();
 	void CheckForCollisions();
+
+	const Entity GetLeftWall();
+	const Entity GetRightWall();
+	const Entity GetFloor();
+	const Entity CreateEntity(double posx, double posy, double x0, double y0, double x1, double y1, double x2, double y2, double x3, double y3);
+	const Entity CreateEntity(double posx, double posy, double x0, double y0, double x1, double y1, double x2, double y2, double x3, double y3, double v0, double v1);
 
 	bool Run();
 };

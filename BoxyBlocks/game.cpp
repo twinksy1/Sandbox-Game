@@ -18,6 +18,45 @@ Game::~Game() {
     }
 }
 
+const Entity Game::GetLeftWall() {
+    Square collisionBox = Square(Line(0.0, 0.0, 0.0, (double)yres), 
+                                Line(6.0, 0.0, 6.0, (double)yres));
+    std::pair<double, double> pos(0.0, 0.0);
+    const Entity entity(pos, collisionBox);
+    return entity;
+}
+
+const Entity Game::GetRightWall() {
+    Square collisionBox = Square(Line((double)xres - 6.0, 0.0, (double)xres - 6.0, yres), 
+                                Line((double)xres, 0.0, (double)xres, (double)yres));
+    std::pair<double, double> pos(0.0, (double)xres - 6.0);
+    const Entity entity(pos, collisionBox);
+    return entity;
+}
+
+const Entity Game::GetFloor() {
+    Square collisionBox = Square(Line(0.0, (double)yres - 6.0, (double)xres, (double)yres - 6.0), 
+                                Line(0.0, (double)yres, (double)xres, (double)yres), false);
+    std::pair<double, double> pos(0.0, (double)yres - 6.0);
+    const Entity entity(pos, collisionBox);
+    return entity;
+}
+
+const Entity Game::CreateEntity(double posx, double posy, double x0, double y0, double x1, double y1, double x2, double y2, double x3, double y3) {
+    Square collisionBox = Square(Line(x0, y0, x1, y1), Line(x2, y2, x3, y3));
+    std::pair<double, double> pos(posx, posy);
+    const Entity entity(pos, collisionBox);
+    return entity;
+}
+
+const Entity Game::CreateEntity(double posx, double posy, double x0, double y0, double x1, double y1, double x2, double y2, double x3, double y3, double v0, double v1) {
+    Square collisionBox = Square(Line(x0, y0, x1, y1), Line(x2, y2, x3, y3));
+    std::pair<double, double> pos(posx, posy);
+    std::pair<double, double> vel(v0, v1);
+    const Entity entity(pos, collisionBox, vel);
+    return entity;
+}
+
 bool Game::Init() {
     if (window.Init(xres, yres, title)) {
         error = Errors::SDL_WINDOW;
@@ -36,9 +75,13 @@ bool Game::Init() {
 
     fontMap.emplace("Roboto-Black-24", font);
 
-    entities.push_back(Entity(std::pair<double, double>(0.0, 0.0), std::pair<double, double>(20.0, 20.0), std::pair<double, double>(1.0, 1.0)));
-    entities.push_back(Entity(std::pair<double, double>(100.0, 100.0), std::pair<double, double>(20.0, 20.0), std::pair<double, double>(0.0, 0.0)));
-    entities.push_back(Entity(std::pair<double, double>(80.0, 300.0), std::pair<double, double>(20.0, 20.0), std::pair<double, double>(0.0, 0.0)));
+    // tmp borders
+    entities.push_back(GetLeftWall());
+    //entities.push_back(GetRightWall());
+    //entities.push_back(GetFloor());
+
+    entities.push_back(CreateEntity(300.0, 300.0, 0.0, 0.0, 0.0, 20.0, 20.0, 20.0, 20.0, 20.0, -20.1, 0.2));
+
     return 0;
 }
 
@@ -54,6 +97,48 @@ void Game::Render() {
     for (auto& entity : entities) {
         window.FillRect(entity.GetPos(), entity.GetDimmensions());
     }
+
+    //static double angle = 0.0;
+    //Square square1;
+    //square1.SetTwoEqualSidesTB(Line(Point(150.0, 150.0), Point(200.0, 200.0)), Line(Point(300.0, 150.0), Point(350.0, 200.0)));
+    //Square square2;
+    //square2.SetAllEqualSides(Line(Point(100.0, 220.0), Point(250.0, 250.0)), SquareSides::RIGHT);
+
+    //square1.Rotate(angle);
+    //square2.Rotate(2.0 * angle);
+
+    //square1.CheckCollision((Shape*)&square2);
+
+    //if (square1.colliding || square2.colliding) {
+    //    window.SetColor(255, 0, 0);
+    //}
+    //else {
+    //    window.SetColor(0, 255, 0);
+    //}
+    //
+    //for (int i = 0; (SquareSides)i < SquareSides::NUM_SQUARE_SIDES; i++) {
+    //    Line line = square1.GetLine((SquareSides)i);
+    //    window.DrawLine(line.GetPt1().x, line.GetPt1().y, line.GetPt2().x, line.GetPt2().y);
+    //    line = square2.GetLine((SquareSides)i);
+    //    window.DrawLine(line.GetPt1().x, line.GetPt1().y, line.GetPt2().x, line.GetPt2().y);
+    //}
+
+    //Line line1(100.0, 100.0, 200.0, 200.0);
+    //Line line2(200.0, 100.0, 50.0, 0.0);
+
+    //line1.Rotate(angle);
+
+    //if (line1.CheckLineIntersection(line2)) {
+    //    window.SetColor(255, 0, 0);
+    //}
+    //else {
+    //    window.SetColor(0, 255, 0);
+    //}
+
+    //window.DrawLine(line1.GetPt1().x, line1.GetPt1().y, line1.GetPt2().x, line1.GetPt2().y);
+    //window.DrawLine(line2.GetPt1().x, line2.GetPt1().y, line2.GetPt2().x, line2.GetPt2().y);
+
+    //angle += 0.01;
 
     window.PostRender();
 }
@@ -84,12 +169,14 @@ void Game::CheckForCollisions() {
 }
 
 void Game::MoveEntities() {
-    if (gameFreeze) {
-        return;
-    }
-    for (auto& entity : entities) {
-        entity.Move();
-    }
+    //if (gameFreeze) {
+    //    return;
+    //}
+    //for (auto& entity : entities) {
+    //    if (!entity.Collided()) {
+    //        entity.Move();
+    //    }
+    //}
 }
 
 bool Game::Run() {
