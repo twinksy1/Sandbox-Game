@@ -7,9 +7,11 @@
 #include "blocks.h"
 #include "display.h"
 #include "Entity.h"
+#include "GridMap.h"
 
 const int xres = 640;
 const int yres = 480;
+const int BLOCK_SIZE = 10;
 
 
 class Camera {
@@ -30,13 +32,15 @@ enum class Errors {
 class Game {
 	std::string title = "Boxy Blocks";
 	std::map<std::string, TTF_Font*> fontMap;
-	std::vector<Entity> entities = std::vector<Entity>();
+	std::vector<Block> blocks;
 	bool gameFreeze = false;
 
 	const Uint32 targetFrameRate = 60;
 	Uint32 frameStart = 0;
 	Uint32 frameTime = 0;
 	Uint32 frameDelay = 0;
+
+	GridMap gridMap;
 public:
 	short int select;
 	float radius = 10.0f;
@@ -70,12 +74,6 @@ public:
 	void Render();
 	void MoveEntities();
 	void CheckForCollisions();
-
-	const Entity GetLeftWall();
-	const Entity GetRightWall();
-	const Entity GetFloor();
-	const Entity CreateEntity(double posx, double posy, double x0, double y0, double x1, double y1, double x2, double y2, double x3, double y3);
-	const Entity CreateEntity(double posx, double posy, double x0, double y0, double x1, double y1, double x2, double y2, double x3, double y3, double v0, double v1);
 
 	bool Run();
 };

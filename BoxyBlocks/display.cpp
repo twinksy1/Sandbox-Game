@@ -85,6 +85,10 @@ void Display::SetColor(int r, int g, int b) {
     SDL_SetRenderDrawColor(rend, r, g, b, 255);
 }
 
+void Display::SetColor(SDL_Color color) {
+    SDL_SetRenderDrawColor(rend, color.r, color.g, color.b, 255);
+}
+
 void Display::PreRender() {
     // Clear screen
     SetColor(0, 0, 0);
@@ -101,8 +105,20 @@ void Display::DrawLine(int x1, int y1, int x2, int y2) {
     SDL_RenderDrawLine(rend, x1, y1, x2, y2);
 }
 
+void Display::DrawLine(Point p1, Point p2) {
+    SDL_RenderDrawLineF(rend, p1.x, p1.y, p2.x, p2.y);
+}
+
+void Display::DrawLine(Line line) {
+    SDL_RenderDrawLineF(rend, line.GetPt1().x, line.GetPt1().y, line.GetPt2().x, line.GetPt2().y);
+}
+
 void Display::DrawPoint(int x, int y) {
     SDL_RenderDrawPoint(rend, x, y);
+}
+
+void Display::DrawPoint(Point pt) {
+    DrawPoint(pt.x, pt.y);
 }
 
 SDL_FRect Display::CreateRectF(double x, double y, double w, double h) {
@@ -158,6 +174,18 @@ void Display::DrawRect(std::pair<double, double> pos, std::pair<double, double> 
     DrawRect(pos.first, pos.second, dimmensions.first, dimmensions.second);
 }
 
+void Display::DrawRect(Square square) {
+    Point pt = square.GetUpperLeftPoint();
+    std::pair<double, double> dimmensions = square.GetDimmensions();
+    DrawRect(pt.x, pt.y, dimmensions.first, dimmensions.second);
+}
+
+void Display::FillRect(Square square) {
+    Point pt = square.GetUpperLeftPoint();
+    std::pair<double, double> dimmensions = square.GetDimmensions();
+    FillRect(pt.x, pt.y, dimmensions.first, dimmensions.second);
+}
+
 void Display::FillRect(float x, float y, float w, float h) {
     SDL_FRect rect = CreateRectF(x, y, w, h);
     SDL_RenderFillRectF(rend, &rect);
@@ -179,6 +207,10 @@ void Display::FillRect(std::pair<float, float> pos, std::pair<float, float> dimm
 
 void Display::FillRect(std::pair<double, double> pos, std::pair<double, double> dimmensions) {
     FillRect(pos.first, pos.second, dimmensions.first, dimmensions.second);
+}
+
+void Display::FillRect(Point pt, std::pair<double, double> dimmensions) {
+    FillRect(pt.x, pt.y, dimmensions.first, dimmensions.second);
 }
 
 void Display::LoadTextures()

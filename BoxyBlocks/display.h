@@ -4,10 +4,12 @@
 #include "SDL.h"
 #include "SDL_ttf.h"
 #include "SDL_image.h"
+#include "Square.h"
 
 #include <cstdio>
 #include <string>
 #include <utility>
+using namespace Shapes2D;
 
 class Display {
 	SDL_Window* window;
@@ -34,13 +36,18 @@ public:
 	~Display();
 	int Init(int xres, int yres, std::string title = "DEFAULT TITLE");
 	void SetColor(int r, int g, int b);
+	void SetColor(SDL_Color color);
 	void PreRender();
 	void PostRender();
 
 	std::wstring ExePath();
 	// Drawing functions
 	void DrawLine(int x1, int y1, int x2, int y2);
+	void DrawLine(Point p1, Point p2);
+	void DrawLine(Line line);
+
 	void DrawPoint(int x, int y);
+	void DrawPoint(Point pt);
 
 	SDL_Rect CreateRect(int x, int y, int w, int h);
 	SDL_Rect CreateRect(float x, float y, float w, float h);
@@ -51,11 +58,14 @@ public:
 	void DrawRect(float x, float y, float w, float h);
 	void DrawRect(std::pair<float, float> pos, std::pair<float, float> dimmensions);
 	void DrawRect(std::pair<double, double> pos, std::pair<double, double> dimmensions);
+	void DrawRect(Square square);
 	void FillRect(int x, int y, int w, int h);
 	void FillRect(float x, float y, float w, float h);
 	void FillRect(double x, double y, double w, double h);
 	void FillRect(std::pair<float, float> pos, std::pair<float, float> dimmensions);
 	void FillRect(std::pair<double, double> pos, std::pair<double, double> dimmensions);
+	void FillRect(Point pt, std::pair<double, double> dimmensions);
+	void FillRect(Square square);
 
 	void LoadTextures();
 	void UpdateTextures();
