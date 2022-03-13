@@ -1,6 +1,7 @@
 #include "display.h"
 #include <Windows.h>
 #include <WinUser.h>
+#include "Line.h"
 #include <locale>
 #include <codecvt>
 
@@ -110,7 +111,7 @@ void Display::DrawLine(Point p1, Point p2) {
 }
 
 void Display::DrawLine(Line line) {
-    SDL_RenderDrawLineF(rend, line.GetPt1().x, line.GetPt1().y, line.GetPt2().x, line.GetPt2().y);
+    SDL_RenderDrawLineF(rend, line.GetPt1()->x, line.GetPt1()->y, line.GetPt2()->x, line.GetPt2()->y);
 }
 
 void Display::DrawPoint(int x, int y) {
@@ -175,15 +176,15 @@ void Display::DrawRect(std::pair<double, double> pos, std::pair<double, double> 
 }
 
 void Display::DrawRect(Square square) {
-    Point pt = square.GetUpperLeftPoint();
+    std::shared_ptr<Point> pt = square.GetUpperLeftPoint();
     std::pair<double, double> dimmensions = square.GetDimmensions();
-    DrawRect(pt.x, pt.y, dimmensions.first, dimmensions.second);
+    DrawRect(pt->x, pt->y, dimmensions.first, dimmensions.second);
 }
 
 void Display::FillRect(Square square) {
-    Point pt = square.GetUpperLeftPoint();
+    std::shared_ptr<Point> pt = square.GetUpperLeftPoint();
     std::pair<double, double> dimmensions = square.GetDimmensions();
-    FillRect(pt.x, pt.y, dimmensions.first, dimmensions.second);
+    FillRect(pt->x, pt->y, dimmensions.first, dimmensions.second);
 }
 
 void Display::FillRect(float x, float y, float w, float h) {
@@ -211,6 +212,16 @@ void Display::FillRect(std::pair<double, double> pos, std::pair<double, double> 
 
 void Display::FillRect(Point pt, std::pair<double, double> dimmensions) {
     FillRect(pt.x, pt.y, dimmensions.first, dimmensions.second);
+}
+
+void Display::FillRect(XY pt, XY dimmensions) {
+    SDL_FRect rect = CreateRectF(pt.x, pt.y, dimmensions.x, dimmensions.y);
+    SDL_RenderFillRectF(rend, &rect);
+}
+
+void Display::FillRect(Point pt, XY dimmensions) {
+    SDL_FRect rect = CreateRectF(pt.x, pt.y, dimmensions.x, dimmensions.y);
+    SDL_RenderFillRectF(rend, &rect);
 }
 
 void Display::LoadTextures()

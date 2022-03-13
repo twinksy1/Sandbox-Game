@@ -157,6 +157,7 @@ copy /Y "$(SDL2_IMAGE)\lib\x64\*.dll" "$(ProjectDir)\x64\Debug"</Command>
     <ClCompile Include="game.cpp" />
     <ClCompile Include="GridMap.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Sand.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="blocks.h" />
@@ -164,6 +165,7 @@ copy /Y "$(SDL2_IMAGE)\lib\x64\*.dll" "$(ProjectDir)\x64\Debug"</Command>
     <ClInclude Include="Entity.h" />
     <ClInclude Include="game.h" />
     <ClInclude Include="GridMap.h" />
+    <ClInclude Include="Sand.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -1,5 +1,6 @@
 #include "game.h"
 #include "ShapeFunctions.h"
+#include "Sand.h"
 #include <Windows.h>
 #include <WinUser.h>
 #include <cstdlib>
@@ -32,14 +33,18 @@ bool Game::Init() {
         std::wstring errorMessage = L"Font Load Error: " + std::wstring(ttfError.begin(), ttfError.end());
         MessageBox(NULL, (LPCWSTR)errorMessage.c_str(), (LPCWSTR)L"SDL TTF", MB_OK);
         error = Errors::FONT_LOAD;
-        return -1;
+        return true;
     }
 
     fontMap.emplace("Roboto-Black-24", font);
 
     gridMap.Init(BLOCK_SIZE, Point(0.0, 0.0), Point((double)xres, (double)yres));
 
-    return 0;
+
+    //blocks.push_back(std::make_shared<Block>(Point(0.0, yres - 100), xres, 20.0));
+    //blocks[0]->SetImmovable();
+
+    return false;
 }
 
 void Game::Render() {
@@ -48,18 +53,18 @@ void Game::Render() {
 #ifdef _DEBUG
     std::string mouseCoords = std::to_string(mousex) + ", " + std::to_string(mousey);
     window.DrawScreenText(mousex, mousey, mouseCoords.length() * 5, mouseCoords.length() * 5, fontMap["Roboto-Black-24"], mouseCoords);
-    window.SetColor(255, 255, 255);
-    for (int i = 0; i < gridMap.GetNumRows(); i++) {
-        window.DrawLine(gridMap.GetLineRow(i));
-    }
-    for (int j = 0; j < gridMap.GetNumCols(); j++) {
-        window.DrawLine(gridMap.GetLineCol(j));
-    }
+    //window.SetColor(255, 255, 255);
+    //for (int i = 0; i < gridMap.GetNumRows(); i++) {
+    //    window.DrawLine(gridMap.GetLineRow(i));
+    //}
+    //for (int j = 0; j < gridMap.GetNumCols(); j++) {
+    //    window.DrawLine(gridMap.GetLineCol(j));
+    //}
 #endif // DEBUG
 
-    window.SetColor(window.SDL_COLORS.GREEN);
+    window.SetColor(window.SDL_COLORS.WHITE);
     for (auto& block : blocks) {
-
+        window.FillRect(block->GetPoint(), block->GetDimmensions());
     }
 
     window.PostRender();
@@ -68,6 +73,14 @@ void Game::Render() {
 void Game::displayCellInfo(float* pos)
 {
 
+}
+
+void Game::GenerateBlock() {
+    Point pt = gridMap.GetPoint(mouseGridPos);
+    if (!gridMap.IsOccupied(mouseGridPos)) {
+        XY velocity = XY((mousex - oldMousex) / BLOCK_SIZE, (mousey - oldMousey) / BLOCK_SIZE);
+        blocks.push_back(std::make_shared<Sand>(pt, mouseGridPos, velocity));
+    }
 }
 
 void Game::pan(int dir)
@@ -83,20 +96,23 @@ void Game::CheckForCollisions() {
 
 }
 
-void Game::MoveEntities() {
+void Game::MoveBlocks() {
     if (gameFreeze) {
         return;
     }
-    //for (auto& entity : entities) {
-    //    entity.Move();
-    //}
+    for(int i=0; i<blocks.size(); i++) {
+        blocks[i]->Move(gridMap);
+    }
 }
 
 bool Game::Run() {
+    oldMousex = mousex;
+    oldMousey = mousey;
+
     frameStart = SDL_GetTicks();
     Render();
     CheckForCollisions();
-    MoveEntities();
+    MoveBlocks();
     bool eventReturn = HandleEvents();
     frameTime = SDL_GetTicks() - frameStart;
     if (frameTime < 10/targetFrameRate*10) {
@@ -117,6 +133,10 @@ bool Game::HandleEvents()
                 return true;
         // Always check mouse
         MouseEvent(e);
+    }
+
+    if (lbutton_down) {
+        GenerateBlock();
     }
 
     return false;
@@ -173,20 +193,28 @@ bool Game::KeyboardEvent(SDL_Event& e) {
     return false;
 }
 
+//Range Game::CoordinatesToMappedRange(double x, double y) {
+//    double mappedX = x - ((int)x % BLOCK_SIZE);
+//    double mappedY = y - ((int)y % BLOCK_SIZE);
+//    return Range(XY(mappedX, mappedY), XY(mappedX + BLOCK_SIZE, mappedY + BLOCK_SIZE));
+//}
+
 void Game::MouseEvent(SDL_Event& e) {
     if (e.type == SDL_MOUSEMOTION) {
         // Mouse moved
         SDL_GetMouseState(&mousex, &mousey);
+        int blockSize = std::round(BLOCK_SIZE);
+        mouseGridPos.x = mousex / BLOCK_SIZE;
+        mouseGridPos.y = mousey / BLOCK_SIZE;
     }
 
     if (e.type == SDL_MOUSEBUTTONDOWN) {
 
-        if (e.button.button == SDL_BUTTON_LEFT || lbutton_down) {
+        if (e.button.button == SDL_BUTTON_LEFT) {
             lbutton_down = true;
             rbutton_down = false;
-
         }
-        else if (e.button.button == SDL_BUTTON_RIGHT || rbutton_down) {
+        else if (e.button.button == SDL_BUTTON_RIGHT) {
             // Right click
             lbutton_down = false;
             rbutton_down = true;
@@ -196,9 +224,14 @@ void Game::MouseEvent(SDL_Event& e) {
 
     if (e.type == SDL_MOUSEBUTTONUP) {
         // Button release
-        if (lbutton_down) {
-            
-        }
+        //if (lbutton_down) {
+        //    //std::map<XY, bool>::iterator it = occupiedGridSpots.find(mouseGridPos);
+        //    //if (it == occupiedGridSpots.end()) {
+        //    Point pt = gridMap.GetPoint(mouseGridPos);
+        //    blocks.push_back(std::make_shared<Block>(pt, mouseGridPos));
+        //    gridMap.SetOccupied(mouseGridPos);
+        //        //occupiedGridSpots.emplace(mouseGridPos, true);
+        //}
 
         lbutton_down = false;
         rbutton_down = false;

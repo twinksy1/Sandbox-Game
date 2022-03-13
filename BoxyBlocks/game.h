@@ -11,7 +11,6 @@
 
 const int xres = 640;
 const int yres = 480;
-const int BLOCK_SIZE = 10;
 
 
 class Camera {
@@ -32,7 +31,8 @@ enum class Errors {
 class Game {
 	std::string title = "Boxy Blocks";
 	std::map<std::string, TTF_Font*> fontMap;
-	std::vector<Block> blocks;
+	std::vector<std::shared_ptr<Block>> blocks;
+	std::map<XY, bool> occupiedGridSpots;
 	bool gameFreeze = false;
 
 	const Uint32 targetFrameRate = 60;
@@ -41,40 +41,42 @@ class Game {
 	Uint32 frameDelay = 0;
 
 	GridMap gridMap;
-public:
-	short int select;
+	short int select = 0;
 	float radius = 10.0f;
 	bool flush = false;
 	bool shift_down = false;
 	bool lbutton_down = false;
 	bool rbutton_down = false;
-	int mousex, mousey;
+	int mousex = 0, mousey = 0;
+	int oldMousex = 0, oldMousey = 0;
+	XY mouseGridPos;
 	bool show_menu = false;
 	bool pause = false;
 	bool inbounds = false;
 	//Chunk chunks[CHUNKSY][CHUNKSX];
 	bool debugMode = true;
-	int rendChunks;
+	int rendChunks = 0;
 	Camera cam;
 	Display window;
-	int curChunkX, curChunkY;
-	Errors error = Errors::NONE;
-	
-	Game();
-	~Game();
-
-	bool Init();
+	int curChunkX = 0, curChunkY = 0;
 
 	void pan(int);
 	void displayCellInfo(float*);
 	bool HandleEvents();
 	bool KeyboardEvent(SDL_Event& e);
 	void MouseEvent(SDL_Event& e);
+	void GenerateBlock();
 
 	void Render();
-	void MoveEntities();
+	void MoveBlocks();
 	void CheckForCollisions();
+	//Range CoordinatesToMappedRange(double x, double y);
+public:
+	Game();
+	~Game();
 
+	bool Init();
+	Errors error = Errors::NONE;
 	bool Run();
 };
 

@@ -64,6 +64,8 @@ public:
 	void FillRect(double x, double y, double w, double h);
 	void FillRect(std::pair<float, float> pos, std::pair<float, float> dimmensions);
 	void FillRect(std::pair<double, double> pos, std::pair<double, double> dimmensions);
+	void FillRect(XY pt, XY dimmensions);
+	void FillRect(Point pt, XY dimmensions);
 	void FillRect(Point pt, std::pair<double, double> dimmensions);
 	void FillRect(Square square);
 
